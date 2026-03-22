@@ -1,39 +1,33 @@
-# AI Native Todo
+# Prism ToDo
 
-macOS-first Flutter repo for the AI Native Todo Phase 1 baseline.
+Prism ToDo is the current macOS-first Flutter delivery for Phase 1.
 
 ## Phase 1 target
 
-Phase 1 only focuses on a usable **macOS desktop shell** around:
+Phase 1 focuses on a usable macOS desktop shell around:
 
-- Today
-- Inbox
-- Quick input
-- desktop navigation/layout
+- 今天
+- 收件箱
+- 快速记录
+- 桌面导航与基础布局
 
-Out of scope for this phase:
+当前不在本轮范围：
 
-- Android / iOS product delivery
-- sync engine / account system
+- Android / iOS 正式交付
+- 账号体系 / 云同步
 - calendar / projects / tags / settings-heavy flows
-- deep package extraction before desktop path stabilizes
+- 过早的深度包拆分
 
 ## Current status
 
-Current verified baseline:
+当前已验证：
 
-- Flutter dependencies resolve successfully
-- static analysis passes
-- widget tests pass
-- macOS app builds successfully
-- `flutter run -d macos` launches the app process successfully
-
-Verified on this repo revision:
-
-- `flutter analyze` ✅
-- `flutter test` ✅
-- `flutter build macos` ✅
-- `flutter run -d macos` ✅ launch path reached
+- 依赖可解析
+- 静态检查通过
+- widget 测试通过
+- 本地持久化已接入
+- macOS release 构建通过
+- dmg 已生成
 
 ## Repo structure
 
@@ -42,17 +36,6 @@ ai-todo/
 ├─ apps/
 │  └─ mobile/
 │     ├─ lib/
-│     │  ├─ app/
-│     │  │  ├─ app.dart
-│     │  │  ├─ models/
-│     │  │  │  └─ task_item.dart
-│     │  │  ├─ screens/
-│     │  │  │  └─ macos_home_page.dart
-│     │  │  └─ widgets/
-│     │  │     ├─ quick_input_bar.dart
-│     │  │     ├─ sidebar_nav.dart
-│     │  │     └─ task_list_section.dart
-│     │  └─ main.dart
 │     ├─ macos/
 │     ├─ test/
 │     └─ pubspec.yaml
@@ -70,21 +53,11 @@ flutter --version
 flutter doctor -v
 ```
 
-Notes:
-
-- Android SDK is not required for Phase 1 macOS work
-- CocoaPods is only needed when iOS/macOS plugins are introduced
+说明：
+- Phase 1 当前只要求 macOS 可运行
+- 由于用了 `path_provider`，macOS 构建需要 CocoaPods
 
 ### 2) Install dependencies
-
-Workspace root:
-
-```bash
-cd ~/Code/ai-todo
-flutter pub get
-```
-
-App layer:
 
 ```bash
 cd ~/Code/ai-todo/apps/mobile
@@ -119,23 +92,63 @@ cd ~/Code/ai-todo/apps/mobile
 flutter build macos
 ```
 
-Build output:
+默认 release app 产物：
 
 ```text
-apps/mobile/build/macos/Build/Products/Release/ai_todo_mobile.app
+apps/mobile/build/macos/Build/Products/Release/Prism ToDo.app
 ```
+
+## Install and launch
+
+### Option A: run from source
+
+```bash
+cd ~/Code/ai-todo/apps/mobile
+flutter run -d macos
+```
+
+### Option B: install from dmg
+
+当前 dmg 产物：
+
+```text
+apps/mobile/dist/Prism-ToDo-macos.dmg
+```
+
+安装步骤：
+1. 双击打开 dmg
+2. 将 `Prism ToDo.app` 拖到 `Applications`
+3. 从应用程序目录启动 `Prism ToDo`
+
+### Unsigned / unnotarized warning
+
+当前产物**未签名、未公证**。
+
+因此在其他 macOS 机器上首次打开时，系统可能出现安全提示。若被拦截，可在：
+
+- `系统设置 -> 隐私与安全性`
+
+中手动允许打开，或通过右键 -> 打开 的方式放行。
+
+这属于当前分发形态的已知风险，不代表应用本身损坏。
+
+## Persistence scope
+
+当前本地持久化覆盖：
+
+- 新增任务
+- 标记完成 / 取消完成
+- 从收件箱移到今天
+- 重启后恢复
+
+存储方案：
+- 本地 JSON 文件
+- 使用 `path_provider` 定位应用支持目录
 
 ## Working agreement for Phase 1
 
-Before adding new work, check one thing first:
+在继续加功能前，先判断一件事：
 
-**Does this improve the first macOS experience for Today / Inbox / quick input?**
+**它是否直接改善 Prism ToDo 的首个 macOS 使用体验？**
 
-If not, defer it.
-
-## Immediate next engineering focus
-
-- stabilize the macOS interaction flow
-- verify main screen behavior in runtime
-- expand tests around Today / Inbox / duplicate-prevention behavior
-- keep architecture light until Phase 1 UX is accepted
+如果不是，先延后。

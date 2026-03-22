@@ -2,7 +2,7 @@
 
 ## 目标
 
-为 AI Native Todo（macOS-first Phase 1）补一版可执行的 QA Gate，聚焦两个问题：
+为 Prism ToDo（macOS-first Phase 1）补一版可执行的 QA Gate，聚焦两个问题：
 
 1. `apps/mobile` 是否已具备 macOS runner
 2. 新同学在本机是否能完成第一次可运行验证

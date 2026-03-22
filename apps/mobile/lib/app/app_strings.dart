@@ -1,7 +1,7 @@
 class AppStrings {
   const AppStrings._();
 
-  static const appTitle = 'AI 原生待办';
+  static const appTitle = 'Prism ToDo';
   static const phaseTag = 'Phase 1 · macOS 优先';
   static const phaseScopeHint = 'Phase 1 当前仅包含“今天”和“收件箱”。';
 

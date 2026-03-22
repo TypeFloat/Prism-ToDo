@@ -1,4 +1,4 @@
-# Phase 1 Plan — AI Native Todo (macOS-first)
+# Phase 1 Plan — Prism ToDo (macOS-first)
 
 ## 结论
 
