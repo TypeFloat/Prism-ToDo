@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_strings.dart';
+import '../data/task_storage.dart';
 import '../logic/task_dedup.dart';
 import '../models/task_item.dart';
 import '../widgets/quick_input_bar.dart';
@@ -8,7 +9,9 @@ import '../widgets/sidebar_nav.dart';
 import '../widgets/task_list_section.dart';
 
 class MacosHomePage extends StatefulWidget {
-  const MacosHomePage({super.key});
+  const MacosHomePage({super.key, this.taskStorage = const TaskStorage()});
+
+  final TaskStorage taskStorage;
 
   @override
   State<MacosHomePage> createState() => _MacosHomePageState();
@@ -18,29 +21,14 @@ class _MacosHomePageState extends State<MacosHomePage> {
   final TextEditingController _controller = TextEditingController();
 
   TaskBucket _selected = TaskBucket.inbox;
-  List<TaskItem> _tasks = const [
-    TaskItem(
-      id: 't1',
-      title: AppStrings.sampleTaskReviewToday,
-      bucket: TaskBucket.today,
-      captureState: TaskCaptureState.parsed,
-      aiSummary: AppStrings.sampleTaskReviewTodaySummary,
-    ),
-    TaskItem(
-      id: 't2',
-      title: AppStrings.sampleTaskMeetingFollowups,
-      bucket: TaskBucket.inbox,
-      aiSummary: AppStrings.sampleTaskMeetingFollowupsSummary,
-    ),
-    TaskItem(
-      id: 't3',
-      title: AppStrings.sampleTaskDemo,
-      bucket: TaskBucket.today,
-      status: TaskStatus.done,
-      captureState: TaskCaptureState.parsed,
-      aiSummary: AppStrings.sampleTaskDemoSummary,
-    ),
-  ];
+  List<TaskItem> _tasks = const [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTasks();
+  }
 
   @override
   void dispose() {
@@ -56,7 +44,9 @@ class _MacosHomePageState extends State<MacosHomePage> {
     final selectedLabel = AppStrings.bucketLabel(_selected == TaskBucket.today);
 
     return Scaffold(
-      body: SafeArea(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SafeArea(
         child: Row(
           children: [
             SidebarNav(
@@ -112,6 +102,20 @@ class _MacosHomePageState extends State<MacosHomePage> {
     );
   }
 
+  Future<void> _loadTasks() async {
+    final tasks = await widget.taskStorage.loadTasks();
+    if (!mounted) return;
+
+    setState(() {
+      _tasks = tasks;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _persistTasks() async {
+    await widget.taskStorage.saveTasks(_tasks);
+  }
+
   void _handleQuickAdd() {
     final title = _controller.text.trim();
     if (title.isEmpty) return;
@@ -145,6 +149,7 @@ class _MacosHomePageState extends State<MacosHomePage> {
       _selected = TaskBucket.inbox;
       _controller.clear();
     });
+    _persistTasks();
   }
 
   void _handleToggleDone(String taskId) {
@@ -159,6 +164,7 @@ class _MacosHomePageState extends State<MacosHomePage> {
           )
           .toList();
     });
+    _persistTasks();
   }
 
   void _handleConfirmParse(String taskId) {
@@ -174,6 +180,7 @@ class _MacosHomePageState extends State<MacosHomePage> {
           )
           .toList();
     });
+    _persistTasks();
   }
 
   void _handleMoveToToday(String taskId) {
@@ -191,6 +198,7 @@ class _MacosHomePageState extends State<MacosHomePage> {
           .toList();
       _selected = TaskBucket.today;
     });
+    _persistTasks();
   }
 
   String _buildPlaceholderSummary(String title) {

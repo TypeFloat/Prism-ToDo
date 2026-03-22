@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_strings.dart';
+import 'data/task_storage.dart';
 import 'screens/macos_home_page.dart';
 
 void runAiTodoApp() {
@@ -8,7 +9,9 @@ void runAiTodoApp() {
 }
 
 class AiTodoApp extends StatelessWidget {
-  const AiTodoApp({super.key});
+  const AiTodoApp({super.key, this.taskStorage = const TaskStorage()});
+
+  final TaskStorage taskStorage;
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +23,7 @@ class AiTodoApp extends StatelessWidget {
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF7F8FC),
       ),
-      home: const MacosHomePage(),
+      home: MacosHomePage(taskStorage: taskStorage),
     );
   }
 }

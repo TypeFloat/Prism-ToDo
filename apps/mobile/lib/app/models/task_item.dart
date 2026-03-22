@@ -4,6 +4,27 @@ enum TaskStatus { todo, done }
 
 enum TaskCaptureState { raw, parsed }
 
+TaskBucket _taskBucketFromName(String value) {
+  return TaskBucket.values.firstWhere(
+    (item) => item.name == value,
+    orElse: () => TaskBucket.inbox,
+  );
+}
+
+TaskStatus _taskStatusFromName(String value) {
+  return TaskStatus.values.firstWhere(
+    (item) => item.name == value,
+    orElse: () => TaskStatus.todo,
+  );
+}
+
+TaskCaptureState _taskCaptureStateFromName(String value) {
+  return TaskCaptureState.values.firstWhere(
+    (item) => item.name == value,
+    orElse: () => TaskCaptureState.raw,
+  );
+}
+
 class TaskItem {
   const TaskItem({
     required this.id,
@@ -39,6 +60,28 @@ class TaskItem {
       status: status ?? this.status,
       captureState: captureState ?? this.captureState,
       aiSummary: aiSummary ?? this.aiSummary,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'bucket': bucket.name,
+      'status': status.name,
+      'captureState': captureState.name,
+      'aiSummary': aiSummary,
+    };
+  }
+
+  factory TaskItem.fromJson(Map<String, dynamic> json) {
+    return TaskItem(
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      bucket: _taskBucketFromName(json['bucket'] as String? ?? ''),
+      status: _taskStatusFromName(json['status'] as String? ?? ''),
+      captureState: _taskCaptureStateFromName(json['captureState'] as String? ?? ''),
+      aiSummary: json['aiSummary'] as String?,
     );
   }
 }
