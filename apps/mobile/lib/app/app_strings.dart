@@ -25,7 +25,7 @@ class AppStrings {
   static const itemCountSuffix = '项';
   static const aiParsed = 'AI 已解析';
   static const aiPending = 'AI 待确认';
-  static const defaultSummary = '占位说明：后续可通过 AI 解析补充截止时间、优先级、地点等信息。';
+  static const defaultSummary = 'AI 解析说明：可补充截止时间、优先级、地点等信息。';
   static const confirmed = '已确认';
   static const confirmParse = '确认解析';
   static const moveToToday = '移到今天';
@@ -73,5 +73,5 @@ class AppStrings {
   }
 
   static String itemCount(int count) => '$count $itemCountSuffix';
-  static String placeholderParse(String title) => '占位解析：“$title”可进一步提取截止时间、优先级、地点等元信息。';
+  static String placeholderParse(String title) => 'AI 解析：“$title”可进一步提取截止时间、优先级、地点等元信息。';
 }

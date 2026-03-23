@@ -124,6 +124,70 @@ void main() {
     expect(find.text(AppStrings.confirmCompleteAll), findsOneWidget);
   });
 
+  testWidgets('cancel parent completion keeps parent and subtasks unchanged', (tester) async {
+    final storage = InMemoryTaskStorage();
+    await tester.pumpWidget(
+      AiTodoApp(
+        taskStorage: storage,
+        settingsStorage: InMemorySettingsStorage(),
+      ),
+    );
+    await tester.pump();
+
+    final checkbox = find.byType(Checkbox).at(0);
+    await tester.tap(checkbox);
+    await tester.pump();
+    await tester.tap(find.text(AppStrings.cancel));
+    await tester.pumpAndSettle();
+
+    final reloaded = await storage.loadTasks();
+    final parent = reloaded.firstWhere((t) => t.id == 't2');
+    final sub1 = reloaded.firstWhere((t) => t.id == 't2-1');
+    final sub2 = reloaded.firstWhere((t) => t.id == 't2-2');
+
+    expect(parent.isDone, isFalse);
+    expect(sub1.isDone, isFalse);
+    expect(sub2.isDone, isFalse);
+  });
+
+  testWidgets('confirm parent completion marks parent and subtasks done and persists after restart', (tester) async {
+    final storage = InMemoryTaskStorage();
+    final settings = InMemorySettingsStorage();
+
+    await tester.pumpWidget(AiTodoApp(taskStorage: storage, settingsStorage: settings));
+    await tester.pump();
+
+    final checkbox = find.byType(Checkbox).at(0);
+    await tester.tap(checkbox);
+    await tester.pump();
+    await tester.tap(find.text(AppStrings.confirmCompleteAll));
+    await tester.pumpAndSettle();
+
+    var reloaded = await storage.loadTasks();
+    var parent = reloaded.firstWhere((t) => t.id == 't2');
+    var sub1 = reloaded.firstWhere((t) => t.id == 't2-1');
+    var sub2 = reloaded.firstWhere((t) => t.id == 't2-2');
+
+    expect(parent.isDone, isTrue);
+    expect(sub1.isDone, isTrue);
+    expect(sub2.isDone, isTrue);
+
+    // restart simulation
+    await tester.pumpWidget(Container());
+    await tester.pump();
+    await tester.pumpWidget(AiTodoApp(taskStorage: storage, settingsStorage: settings));
+    await tester.pump();
+
+    reloaded = await storage.loadTasks();
+    parent = reloaded.firstWhere((t) => t.id == 't2');
+    sub1 = reloaded.firstWhere((t) => t.id == 't2-1');
+    sub2 = reloaded.firstWhere((t) => t.id == 't2-2');
+
+    expect(parent.isDone, isTrue);
+    expect(sub1.isDone, isTrue);
+    expect(sub2.isDone, isTrue);
+  });
+
   testWidgets('quick input prevents duplicate creation', (tester) async {
     await tester.pumpWidget(
       AiTodoApp(
