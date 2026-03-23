@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../app_strings.dart';
+import '../../../../app_strings.dart';
 
 class QuickInputBar extends StatelessWidget {
   const QuickInputBar({
@@ -23,15 +23,9 @@ class QuickInputBar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            AppStrings.quickInputTitle,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text(AppStrings.quickInputTitle, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 6),
-          Text(
-            AppStrings.quickInputHint,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          Text(AppStrings.quickInputHint, style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -43,16 +37,14 @@ class QuickInputBar extends StatelessWidget {
                   decoration: InputDecoration(
                     hintText: AppStrings.quickInputPlaceholder,
                     prefixIcon: const Icon(Icons.bolt_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
               FilledButton.icon(
                 onPressed: onSubmit,
-                icon: const Icon(Icons.inbox_outlined),
+                icon: const Icon(Icons.add_task_outlined),
                 label: const Text(AppStrings.captureToInbox),
               ),
             ],

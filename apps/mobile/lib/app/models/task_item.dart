@@ -33,6 +33,8 @@ class TaskItem {
     this.status = TaskStatus.todo,
     this.captureState = TaskCaptureState.raw,
     this.aiSummary,
+    this.parentId,
+    this.doneAt,
   });
 
   final String id;
@@ -41,9 +43,12 @@ class TaskItem {
   final TaskStatus status;
   final TaskCaptureState captureState;
   final String? aiSummary;
+  final String? parentId;
+  final DateTime? doneAt;
 
   bool get isDone => status == TaskStatus.done;
   bool get isParsed => captureState == TaskCaptureState.parsed;
+  bool get isSubtask => parentId != null;
 
   TaskItem copyWith({
     String? id,
@@ -52,6 +57,9 @@ class TaskItem {
     TaskStatus? status,
     TaskCaptureState? captureState,
     String? aiSummary,
+    String? parentId,
+    DateTime? doneAt,
+    bool clearDoneAt = false,
   }) {
     return TaskItem(
       id: id ?? this.id,
@@ -60,6 +68,8 @@ class TaskItem {
       status: status ?? this.status,
       captureState: captureState ?? this.captureState,
       aiSummary: aiSummary ?? this.aiSummary,
+      parentId: parentId ?? this.parentId,
+      doneAt: clearDoneAt ? null : (doneAt ?? this.doneAt),
     );
   }
 
@@ -71,6 +81,8 @@ class TaskItem {
       'status': status.name,
       'captureState': captureState.name,
       'aiSummary': aiSummary,
+      'parentId': parentId,
+      'doneAt': doneAt?.toIso8601String(),
     };
   }
 
@@ -82,6 +94,8 @@ class TaskItem {
       status: _taskStatusFromName(json['status'] as String? ?? ''),
       captureState: _taskCaptureStateFromName(json['captureState'] as String? ?? ''),
       aiSummary: json['aiSummary'] as String?,
+      parentId: json['parentId'] as String?,
+      doneAt: json['doneAt'] == null ? null : DateTime.tryParse(json['doneAt'] as String),
     );
   }
 }

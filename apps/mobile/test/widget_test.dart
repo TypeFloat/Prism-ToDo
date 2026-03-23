@@ -2,6 +2,8 @@ import 'package:ai_todo_mobile/app/app.dart';
 import 'package:ai_todo_mobile/app/app_strings.dart';
 import 'package:ai_todo_mobile/app/data/task_seed.dart';
 import 'package:ai_todo_mobile/app/data/task_storage.dart';
+import 'package:ai_todo_mobile/app/features/settings/data/settings_storage.dart';
+import 'package:ai_todo_mobile/app/features/settings/domain/ai_settings.dart';
 import 'package:ai_todo_mobile/app/logic/task_dedup.dart';
 import 'package:ai_todo_mobile/app/models/task_item.dart';
 import 'package:flutter/material.dart';
@@ -20,6 +22,20 @@ class InMemoryTaskStorage extends TaskStorage {
   @override
   Future<void> saveTasks(List<TaskItem> tasks) async {
     _tasks = List<TaskItem>.from(tasks);
+  }
+}
+
+class InMemorySettingsStorage extends SettingsStorage {
+  InMemorySettingsStorage([this._settings = const AISettings()]) : super(baseDirectory: null);
+
+  AISettings _settings;
+
+  @override
+  Future<AISettings> loadSettings() async => _settings;
+
+  @override
+  Future<void> saveSettings(AISettings settings) async {
+    _settings = settings;
   }
 }
 
@@ -42,21 +58,82 @@ void main() {
     );
   });
 
-  testWidgets('app smoke test renders macOS shell', (tester) async {
-    await tester.pumpWidget(AiTodoApp(taskStorage: InMemoryTaskStorage()));
+  testWidgets('app smoke test renders workbench shell', (tester) async {
+    await tester.pumpWidget(
+      AiTodoApp(
+        taskStorage: InMemoryTaskStorage(),
+        settingsStorage: InMemorySettingsStorage(),
+      ),
+    );
     await tester.pump();
 
-    expect(find.text(AppStrings.appTitle), findsOneWidget);
+    expect(find.text(AppStrings.appTitle), findsWidgets);
     expect(find.text(AppStrings.quickInputTitle), findsOneWidget);
     expect(find.text(AppStrings.today), findsWidgets);
     expect(find.text(AppStrings.inbox), findsWidgets);
+    expect(find.text(AppStrings.completed), findsOneWidget);
+    expect(find.text(AppStrings.settings), findsOneWidget);
+  });
+
+  testWidgets('completed tasks are hidden from inbox and today', (tester) async {
+    await tester.pumpWidget(
+      AiTodoApp(
+        taskStorage: InMemoryTaskStorage(),
+        settingsStorage: InMemorySettingsStorage(),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text(AppStrings.sampleTaskDemo), findsNothing);
+    await tester.tap(find.text(AppStrings.completed));
+    await tester.pump();
+    expect(find.text(AppStrings.sampleTaskDemo), findsOneWidget);
+  });
+
+  testWidgets('settings view can be opened', (tester) async {
+    await tester.pumpWidget(
+      AiTodoApp(
+        taskStorage: InMemoryTaskStorage(),
+        settingsStorage: InMemorySettingsStorage(),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text(AppStrings.settings).first);
+    await tester.pump();
+
+    expect(find.text(AppStrings.settingsTitle), findsWidgets);
+    expect(find.text(AppStrings.aiFeatureToggle), findsOneWidget);
+  });
+
+  testWidgets('parent task completion asks for subtask confirmation', (tester) async {
+    await tester.pumpWidget(
+      AiTodoApp(
+        taskStorage: InMemoryTaskStorage(),
+        settingsStorage: InMemorySettingsStorage(),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text(AppStrings.sampleTaskMeetingFollowups), findsOneWidget);
+    final checkbox = find.byType(Checkbox).at(0);
+    await tester.tap(checkbox);
+    await tester.pump();
+
+    expect(find.text(AppStrings.completeWithSubtasksTitle), findsOneWidget);
+    expect(find.text(AppStrings.confirmCompleteAll), findsOneWidget);
   });
 
   testWidgets('quick input prevents duplicate creation', (tester) async {
-    await tester.pumpWidget(AiTodoApp(taskStorage: InMemoryTaskStorage()));
+    await tester.pumpWidget(
+      AiTodoApp(
+        taskStorage: InMemoryTaskStorage(),
+        settingsStorage: InMemorySettingsStorage(),
+      ),
+    );
     await tester.pump();
 
-    final input = find.byType(TextField);
+    final input = find.byType(TextField).first;
     expect(input, findsOneWidget);
 
     const newTaskTitle = '补一条组件冒烟测试';
