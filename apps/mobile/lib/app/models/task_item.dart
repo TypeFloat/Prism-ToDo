@@ -35,6 +35,10 @@ class TaskItem {
     this.aiSummary,
     this.parentId,
     this.doneAt,
+    this.deadline,
+    this.priority,
+    this.location,
+    this.notes,
   });
 
   final String id;
@@ -45,6 +49,10 @@ class TaskItem {
   final String? aiSummary;
   final String? parentId;
   final DateTime? doneAt;
+  final String? deadline;
+  final String? priority;
+  final String? location;
+  final String? notes;
 
   bool get isDone => status == TaskStatus.done;
   bool get isParsed => captureState == TaskCaptureState.parsed;
@@ -59,6 +67,10 @@ class TaskItem {
     String? aiSummary,
     String? parentId,
     DateTime? doneAt,
+    String? deadline,
+    String? priority,
+    String? location,
+    String? notes,
     bool clearDoneAt = false,
   }) {
     return TaskItem(
@@ -70,6 +82,10 @@ class TaskItem {
       aiSummary: aiSummary ?? this.aiSummary,
       parentId: parentId ?? this.parentId,
       doneAt: clearDoneAt ? null : (doneAt ?? this.doneAt),
+      deadline: deadline ?? this.deadline,
+      priority: priority ?? this.priority,
+      location: location ?? this.location,
+      notes: notes ?? this.notes,
     );
   }
 
@@ -83,6 +99,10 @@ class TaskItem {
       'aiSummary': aiSummary,
       'parentId': parentId,
       'doneAt': doneAt?.toIso8601String(),
+      'deadline': deadline,
+      'priority': priority,
+      'location': location,
+      'notes': notes,
     };
   }
 
@@ -96,6 +116,10 @@ class TaskItem {
       aiSummary: json['aiSummary'] as String?,
       parentId: json['parentId'] as String?,
       doneAt: json['doneAt'] == null ? null : DateTime.tryParse(json['doneAt'] as String),
+      deadline: json['deadline'] as String?,
+      priority: json['priority'] as String?,
+      location: json['location'] as String?,
+      notes: json['notes'] as String?,
     );
   }
 }

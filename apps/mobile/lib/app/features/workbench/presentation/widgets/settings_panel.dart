@@ -92,6 +92,15 @@ class _SettingsPanelState extends State<SettingsPanel> {
               const SizedBox(height: 12),
               _Field(label: AppStrings.aiTimeout, controller: _timeoutController, onChanged: (value) => _update(_draft.copyWith(timeoutSeconds: value))),
             ],
+            const SizedBox(height: 12),
+            Text(AppStrings.aiEnvFallbackHint, style: Theme.of(context).textTheme.bodySmall),
+            if (_draft.usingEnvBaseUrl || _draft.usingEnvApiKey) ...[
+              const SizedBox(height: 8),
+              Text(
+                '当前生效来源：${_draft.usingEnvBaseUrl ? 'URL=环境变量 ' : 'URL=软件内 '} ${_draft.usingEnvApiKey ? 'Token=环境变量' : 'Token=软件内或空'}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
             const SizedBox(height: 20),
             Wrap(
               spacing: 12,

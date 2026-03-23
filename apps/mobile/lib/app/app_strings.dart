@@ -35,8 +35,9 @@ class AppStrings {
   static const aiFeatureToggle = '启用 AI 解析';
   static const aiAdvancedMode = '高级模式';
   static const aiBaseUrl = 'Base URL';
-  static const aiApiKey = 'API Key';
+  static const aiApiKey = 'API Key / Token';
   static const aiModel = 'Model';
+  static const aiEnvFallbackHint = '软件内配置优先；为空时回退到环境变量 PRISM_TODO_AI_URL / PRISM_TODO_AI_TOKEN。';
   static const aiTemperature = 'Temperature';
   static const aiTimeout = '超时时间（秒）';
   static const testConnection = '测试连接';

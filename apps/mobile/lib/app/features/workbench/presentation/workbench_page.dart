@@ -257,6 +257,7 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
   }
 
   void _handleConfirmParse(String taskId) async {
+    final messenger = ScaffoldMessenger.of(context);
     final target = _tasks.firstWhere((task) => task.id == taskId);
     try {
       final result = await widget.aiClient.parseTask(rawText: target.title, settings: _settings);
@@ -268,19 +269,21 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                     title: result.normalizedTitle,
                     captureState: TaskCaptureState.parsed,
                     aiSummary: result.summary,
+                    deadline: result.deadline,
+                    priority: result.priority,
+                    location: result.location,
+                    notes: result.notes,
                   )
                 : task)
             .toList();
       });
       _persistTasks();
     } on AIRequestError catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
+      messenger
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(error.message)));
     } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
+      messenger
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text('AI 解析失败：$error')));
     }
@@ -312,6 +315,7 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
   }
 
   void _handleTestConnection() async {
+    final messenger = ScaffoldMessenger.of(context);
     setState(() {
       _isTestingConnection = true;
       _lastConnectionResult = null;
@@ -325,7 +329,7 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
       _lastConnectionResult = result.message;
     });
 
-    ScaffoldMessenger.of(context)
+    messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(result.message)));
   }

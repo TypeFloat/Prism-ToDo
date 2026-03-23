@@ -5,6 +5,7 @@ class AIParseResult {
     this.deadline,
     this.priority,
     this.location,
+    this.notes,
   });
 
   final String normalizedTitle;
@@ -12,4 +13,5 @@ class AIParseResult {
   final String? deadline;
   final String? priority;
   final String? location;
+  final String? notes;
 }

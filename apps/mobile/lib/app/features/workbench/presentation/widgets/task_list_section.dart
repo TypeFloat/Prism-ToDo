@@ -135,7 +135,19 @@ class _TaskCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-              child: Text(summary, style: theme.textTheme.bodyMedium),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(summary, style: theme.textTheme.bodyMedium),
+                  if (task.deadline != null || task.priority != null || task.location != null || task.notes != null) ...[
+                    const SizedBox(height: 10),
+                    if (task.deadline != null) Text('截止时间：${task.deadline}', style: theme.textTheme.bodySmall),
+                    if (task.priority != null) Text('优先级：${task.priority}', style: theme.textTheme.bodySmall),
+                    if (task.location != null) Text('地点：${task.location}', style: theme.textTheme.bodySmall),
+                    if (task.notes != null) Text('备注：${task.notes}', style: theme.textTheme.bodySmall),
+                  ],
+                ],
+              ),
             ),
             if (subtasks.isNotEmpty) ...[
               const SizedBox(height: 10),
