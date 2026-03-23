@@ -7,6 +7,7 @@ import '../../../models/task_item.dart';
 import '../../settings/data/settings_storage.dart';
 import '../../settings/domain/ai_settings.dart';
 import '../../ai/data/openai_compatible_client.dart';
+import '../../ai/domain/ai_request_error.dart';
 import 'widgets/quick_input_bar.dart';
 import 'widgets/settings_panel.dart';
 import 'widgets/sidebar_nav.dart';
@@ -37,6 +38,8 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
   List<TaskItem> _tasks = const [];
   AISettings _settings = const AISettings();
   bool _isLoading = true;
+  bool _isTestingConnection = false;
+  String? _lastConnectionResult;
 
   @override
   void initState() {
@@ -82,6 +85,8 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                               onChanged: _handleSettingsChanged,
                               onSave: _handleSaveSettings,
                               onTestConnection: _handleTestConnection,
+                              testing: _isTestingConnection,
+                              lastTestResult: _lastConnectionResult,
                             )
                           : Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -253,19 +258,32 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
 
   void _handleConfirmParse(String taskId) async {
     final target = _tasks.firstWhere((task) => task.id == taskId);
-    final result = await widget.aiClient.parseTask(rawText: target.title, settings: _settings);
-    setState(() {
-      _tasks = _tasks
-          .map((task) => task.id == taskId
-              ? task.copyWith(
-                  title: result.normalizedTitle,
-                  captureState: TaskCaptureState.parsed,
-                  aiSummary: result.summary,
-                )
-              : task)
-          .toList();
-    });
-    _persistTasks();
+    try {
+      final result = await widget.aiClient.parseTask(rawText: target.title, settings: _settings);
+      if (!mounted) return;
+      setState(() {
+        _tasks = _tasks
+            .map((task) => task.id == taskId
+                ? task.copyWith(
+                    title: result.normalizedTitle,
+                    captureState: TaskCaptureState.parsed,
+                    aiSummary: result.summary,
+                  )
+                : task)
+            .toList();
+      });
+      _persistTasks();
+    } on AIRequestError catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('AI 解析失败：$error')));
+    }
   }
 
   void _handleMoveToToday(String taskId) {
@@ -293,9 +311,22 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
       ..showSnackBar(const SnackBar(content: Text(AppStrings.settingsSaved)));
   }
 
-  void _handleTestConnection() {
+  void _handleTestConnection() async {
+    setState(() {
+      _isTestingConnection = true;
+      _lastConnectionResult = null;
+    });
+
+    final result = await widget.aiClient.testConnection(settings: _settings);
+    if (!mounted) return;
+
+    setState(() {
+      _isTestingConnection = false;
+      _lastConnectionResult = result.message;
+    });
+
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text(AppStrings.connectionCheckPlaceholder)));
+      ..showSnackBar(SnackBar(content: Text(result.message)));
   }
 }

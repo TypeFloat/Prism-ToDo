@@ -10,12 +10,16 @@ class SettingsPanel extends StatefulWidget {
     required this.onChanged,
     required this.onSave,
     required this.onTestConnection,
+    required this.testing,
+    this.lastTestResult,
   });
 
   final AISettings settings;
   final ValueChanged<AISettings> onChanged;
   final VoidCallback onSave;
   final VoidCallback onTestConnection;
+  final bool testing;
+  final String? lastTestResult;
 
   @override
   State<SettingsPanel> createState() => _SettingsPanelState();
@@ -94,9 +98,19 @@ class _SettingsPanelState extends State<SettingsPanel> {
               runSpacing: 12,
               children: [
                 FilledButton.icon(onPressed: widget.onSave, icon: const Icon(Icons.save_outlined), label: const Text(AppStrings.saveSettings)),
-                OutlinedButton.icon(onPressed: widget.onTestConnection, icon: const Icon(Icons.network_check_outlined), label: const Text(AppStrings.testConnection)),
+                OutlinedButton.icon(
+                  onPressed: widget.testing ? null : widget.onTestConnection,
+                  icon: widget.testing
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.network_check_outlined),
+                  label: Text(widget.testing ? '请求中…' : AppStrings.testConnection),
+                ),
               ],
             ),
+            if (widget.lastTestResult != null) ...[
+              const SizedBox(height: 16),
+              SelectableText(widget.lastTestResult!, style: Theme.of(context).textTheme.bodySmall),
+            ],
           ],
         ),
       ),
