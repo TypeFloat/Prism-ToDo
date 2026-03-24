@@ -33,6 +33,12 @@ class TaskItem {
     this.status = TaskStatus.todo,
     this.captureState = TaskCaptureState.raw,
     this.aiSummary,
+    this.parentId,
+    this.doneAt,
+    this.deadline,
+    this.priority,
+    this.location,
+    this.notes,
   });
 
   final String id;
@@ -41,9 +47,16 @@ class TaskItem {
   final TaskStatus status;
   final TaskCaptureState captureState;
   final String? aiSummary;
+  final String? parentId;
+  final DateTime? doneAt;
+  final String? deadline;
+  final String? priority;
+  final String? location;
+  final String? notes;
 
   bool get isDone => status == TaskStatus.done;
   bool get isParsed => captureState == TaskCaptureState.parsed;
+  bool get isSubtask => parentId != null;
 
   TaskItem copyWith({
     String? id,
@@ -52,6 +65,13 @@ class TaskItem {
     TaskStatus? status,
     TaskCaptureState? captureState,
     String? aiSummary,
+    String? parentId,
+    DateTime? doneAt,
+    String? deadline,
+    String? priority,
+    String? location,
+    String? notes,
+    bool clearDoneAt = false,
   }) {
     return TaskItem(
       id: id ?? this.id,
@@ -60,6 +80,12 @@ class TaskItem {
       status: status ?? this.status,
       captureState: captureState ?? this.captureState,
       aiSummary: aiSummary ?? this.aiSummary,
+      parentId: parentId ?? this.parentId,
+      doneAt: clearDoneAt ? null : (doneAt ?? this.doneAt),
+      deadline: deadline ?? this.deadline,
+      priority: priority ?? this.priority,
+      location: location ?? this.location,
+      notes: notes ?? this.notes,
     );
   }
 
@@ -71,6 +97,12 @@ class TaskItem {
       'status': status.name,
       'captureState': captureState.name,
       'aiSummary': aiSummary,
+      'parentId': parentId,
+      'doneAt': doneAt?.toIso8601String(),
+      'deadline': deadline,
+      'priority': priority,
+      'location': location,
+      'notes': notes,
     };
   }
 
@@ -82,6 +114,12 @@ class TaskItem {
       status: _taskStatusFromName(json['status'] as String? ?? ''),
       captureState: _taskCaptureStateFromName(json['captureState'] as String? ?? ''),
       aiSummary: json['aiSummary'] as String?,
+      parentId: json['parentId'] as String?,
+      doneAt: json['doneAt'] == null ? null : DateTime.tryParse(json['doneAt'] as String),
+      deadline: json['deadline'] as String?,
+      priority: json['priority'] as String?,
+      location: json['location'] as String?,
+      notes: json['notes'] as String?,
     );
   }
 }

@@ -2,16 +2,22 @@ import 'package:flutter/material.dart';
 
 import 'app_strings.dart';
 import 'data/task_storage.dart';
-import 'screens/macos_home_page.dart';
+import 'features/settings/data/settings_storage.dart';
+import 'features/workbench/presentation/workbench_page.dart';
 
 void runAiTodoApp() {
   runApp(const AiTodoApp());
 }
 
 class AiTodoApp extends StatelessWidget {
-  const AiTodoApp({super.key, this.taskStorage = const TaskStorage()});
+  const AiTodoApp({
+    super.key,
+    this.taskStorage = const TaskStorage(),
+    this.settingsStorage = const SettingsStorage(),
+  });
 
   final TaskStorage taskStorage;
+  final SettingsStorage settingsStorage;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +29,7 @@ class AiTodoApp extends StatelessWidget {
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF7F8FC),
       ),
-      home: MacosHomePage(taskStorage: taskStorage),
+      home: WorkbenchPage(taskStorage: taskStorage, settingsStorage: settingsStorage),
     );
   }
 }
