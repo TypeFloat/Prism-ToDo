@@ -84,6 +84,9 @@ void main() {
 
   test('testConnection parses successful response', () async {
     final mock = MockClient((request) async {
+      if (request.method == 'GET') {
+        return http.Response('ok', 200);
+      }
       expect(request.url.toString(), 'https://example.com/v1/chat/completions');
       expect(request.headers['Authorization'], 'Bearer token');
       return http.Response(
@@ -112,8 +115,49 @@ void main() {
     expect(result.message, contains('ok'));
   });
 
+  test('dns failure returns typed hint', () async {
+    const client = OpenAICompatibleClient();
+    const settings = AISettings(
+      enabled: true,
+      advancedMode: true,
+      baseUrl: 'https://nonexistent-prism-ai.invalid/v1',
+      apiKey: 'token',
+      model: 'gpt-4o-mini',
+      timeoutSeconds: '5',
+    );
+
+    final result = await client.testConnection(settings: settings);
+    expect(result.success, isFalse);
+    expect(result.message, anyOf(contains('DNS'), contains('无法解析域名')));
+  });
+
+  test('url preflight returns incompatible hint when endpoint is 404', () async {
+    final mock = MockClient((request) async {
+      if (request.method == 'GET') {
+        return http.Response('404 page not found', 404);
+      }
+      return http.Response('404 page not found', 404);
+    });
+
+    final client = OpenAICompatibleClient(httpClient: mock);
+    const settings = AISettings(
+      enabled: true,
+      advancedMode: true,
+      baseUrl: 'https://example.com/v1',
+      apiKey: 'token',
+      model: 'gpt-4o-mini',
+    );
+
+    final result = await client.testConnection(settings: settings);
+    expect(result.success, isFalse);
+    expect(result.message, contains('URL 预检失败'));
+  });
+
   test('parseTask extracts structured fields from JSON content', () async {
     final mock = MockClient((request) async {
+      if (request.method == 'GET') {
+        return http.Response('ok', 200);
+      }
       return http.Response.bytes(
         utf8.encode(jsonEncode({
           'choices': [

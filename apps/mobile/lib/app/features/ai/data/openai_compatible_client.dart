@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -23,6 +24,9 @@ class OpenAICompatibleClient implements AIClient {
     }
 
     final uri = buildChatCompletionsUri(settings);
+    final preflight = await preflightCheck(uri, settings);
+    if (preflight != null) return preflight;
+
     final payload = buildChatCompletionsPayload(
       rawText: '请回复一个简短的 ok，用于验证 API 连通性。',
       settings: settings,
@@ -30,18 +34,22 @@ class OpenAICompatibleClient implements AIClient {
 
     try {
       final response = await _client
-          .post(
-            uri,
-            headers: buildHeaders(settings),
-            body: jsonEncode(payload),
-          )
+          .post(uri, headers: buildHeaders(settings), body: jsonEncode(payload))
           .timeout(Duration(seconds: int.tryParse(settings.timeoutSeconds) ?? 30));
 
       final decodedBody = decodeResponseBody(response);
+      if (response.statusCode == 404) {
+        return AIConnectionResult(
+          success: false,
+          message: 'URL 不兼容：/v1/chat/completions 返回 404。请检查 Base URL 是否为 OpenAI 兼容网关。',
+          statusCode: response.statusCode,
+          rawResponse: decodedBody,
+        );
+      }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         return AIConnectionResult(
           success: false,
-          message: '请求失败：HTTP ${response.statusCode}',
+          message: 'HTTP 错误：${response.statusCode}。',
           statusCode: response.statusCode,
           rawResponse: decodedBody,
         );
@@ -54,6 +62,10 @@ class OpenAICompatibleClient implements AIClient {
         statusCode: response.statusCode,
         rawResponse: decodedBody,
       );
+    } on SocketException catch (error) {
+      return AIConnectionResult(success: false, message: 'DNS/网络错误：${error.message}');
+    } on HandshakeException catch (error) {
+      return AIConnectionResult(success: false, message: 'TLS/证书握手错误：$error');
     } on AIRequestError catch (error) {
       return AIConnectionResult(success: false, message: error.message);
     } catch (error) {
@@ -62,46 +74,46 @@ class OpenAICompatibleClient implements AIClient {
   }
 
   @override
-  Future<AIParseResult> parseTask({
-    required String rawText,
-    required AISettings settings,
-  }) async {
+  Future<AIParseResult> parseTask({required String rawText, required AISettings settings}) async {
     final validationError = validateSettings(settings);
-    if (validationError != null) {
-      throw AIRequestError(validationError);
-    }
+    if (validationError != null) throw AIRequestError(validationError);
 
     final uri = buildChatCompletionsUri(settings);
     final payload = buildChatCompletionsPayload(rawText: rawText, settings: settings);
 
-    final response = await _client
-        .post(
-          uri,
-          headers: buildHeaders(settings),
-          body: jsonEncode(payload),
-        )
-        .timeout(Duration(seconds: int.tryParse(settings.timeoutSeconds) ?? 30));
+    try {
+      final response = await _client
+          .post(uri, headers: buildHeaders(settings), body: jsonEncode(payload))
+          .timeout(Duration(seconds: int.tryParse(settings.timeoutSeconds) ?? 30));
 
-    final decodedBody = decodeResponseBody(response);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw AIRequestError('AI 请求失败：HTTP ${response.statusCode} $decodedBody');
+      final decodedBody = decodeResponseBody(response);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        if (response.statusCode == 404) {
+          throw const AIRequestError('URL 不兼容：/v1/chat/completions 不可用（404）。');
+        }
+        throw AIRequestError('HTTP 错误：${response.statusCode} $decodedBody');
+      }
+
+      final content = extractAssistantContent(decodedBody);
+      if (content.isEmpty) {
+        throw const AIRequestError('AI 返回成功，但没有可解析内容。');
+      }
+
+      final parsed = parseStructuredContent(content);
+      final normalized = (parsed['title'] as String?)?.trim();
+      return AIParseResult(
+        normalizedTitle: normalized == null || normalized.isEmpty ? rawText.trim().replaceAll(RegExp(r'\s+'), ' ') : normalized,
+        summary: content,
+        deadline: (parsed['deadline'] as String?)?.trim(),
+        priority: (parsed['priority'] as String?)?.trim(),
+        location: (parsed['location'] as String?)?.trim(),
+        notes: (parsed['notes'] as String?)?.trim(),
+      );
+    } on SocketException catch (error) {
+      throw AIRequestError('DNS/网络错误：${error.message}');
+    } on HandshakeException catch (error) {
+      throw AIRequestError('TLS/证书握手错误：$error');
     }
-
-    final content = extractAssistantContent(decodedBody);
-    if (content.isEmpty) {
-      throw const AIRequestError('AI 返回成功，但没有可解析内容。');
-    }
-
-    final parsed = parseStructuredContent(content);
-    final normalized = (parsed['title'] as String?)?.trim();
-    return AIParseResult(
-      normalizedTitle: normalized == null || normalized.isEmpty ? rawText.trim().replaceAll(RegExp(r'\s+'), ' ') : normalized,
-      summary: content,
-      deadline: (parsed['deadline'] as String?)?.trim(),
-      priority: (parsed['priority'] as String?)?.trim(),
-      location: (parsed['location'] as String?)?.trim(),
-      notes: (parsed['notes'] as String?)?.trim(),
-    );
   }
 
   String? validateSettings(AISettings settings) {
@@ -118,6 +130,34 @@ class OpenAICompatibleClient implements AIClient {
     return null;
   }
 
+  Future<AIConnectionResult?> preflightCheck(Uri uri, AISettings settings) async {
+    try {
+      await InternetAddress.lookup(uri.host);
+    } on SocketException catch (error) {
+      return AIConnectionResult(success: false, message: 'DNS 错误：无法解析域名 ${uri.host}（${error.message}）');
+    }
+
+    try {
+      final probe = await _client.get(uri).timeout(Duration(seconds: int.tryParse(settings.timeoutSeconds) ?? 30));
+      if (probe.statusCode == 404) {
+        return AIConnectionResult(
+          success: false,
+          message: 'URL 预检失败：$uri 返回 404，可能不是 OpenAI 兼容接口。',
+          statusCode: probe.statusCode,
+          rawResponse: decodeResponseBody(probe),
+        );
+      }
+    } on HandshakeException catch (error) {
+      return AIConnectionResult(success: false, message: 'TLS 预检失败：$error');
+    } on SocketException catch (error) {
+      return AIConnectionResult(success: false, message: '网络预检失败：${error.message}');
+    } catch (_) {
+      // 某些服务不支持 GET 探测，这里不阻断，继续走 POST。
+    }
+
+    return null;
+  }
+
   Uri buildChatCompletionsUri(AISettings settings) {
     final base = settings.effectiveBaseUrl.trim().replaceAll(RegExp(r'/+$'), '');
     final uri = Uri.parse(base);
@@ -129,39 +169,26 @@ class OpenAICompatibleClient implements AIClient {
   }
 
   Map<String, String> buildHeaders(AISettings settings) {
-    final headers = <String, String>{
-      'Content-Type': 'application/json',
-    };
+    final headers = <String, String>{'Content-Type': 'application/json'};
     if (settings.effectiveApiKey.trim().isNotEmpty) {
       headers['Authorization'] = 'Bearer ${settings.effectiveApiKey.trim()}';
     }
     return headers;
   }
 
-  Map<String, dynamic> buildChatCompletionsPayload({
-    required String rawText,
-    required AISettings settings,
-  }) {
+  Map<String, dynamic> buildChatCompletionsPayload({required String rawText, required AISettings settings}) {
     return {
       'model': settings.model,
       'temperature': double.tryParse(settings.temperature) ?? 0.2,
       'response_format': {'type': 'json_object'},
       'messages': [
-        {
-          'role': 'system',
-          'content': 'Extract a todo into JSON with keys: title, deadline, priority, location, notes. Return valid JSON only.',
-        },
-        {
-          'role': 'user',
-          'content': rawText,
-        },
+        {'role': 'system', 'content': 'Extract a todo into JSON with keys: title, deadline, priority, location, notes. Return valid JSON only.'},
+        {'role': 'user', 'content': rawText},
       ],
     };
   }
 
-  String decodeResponseBody(http.Response response) {
-    return utf8.decode(response.bodyBytes);
-  }
+  String decodeResponseBody(http.Response response) => utf8.decode(response.bodyBytes);
 
   String extractAssistantContent(String responseBody) {
     final decoded = jsonDecode(responseBody);
