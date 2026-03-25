@@ -68,6 +68,23 @@ class _SettingsPanelState extends State<SettingsPanel> {
             const SizedBox(height: 6),
             Text(AppStrings.settingsSubtitle, style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 20),
+            DropdownButtonFormField<String>(
+              initialValue: _draft.themeMode,
+              decoration: const InputDecoration(
+                labelText: AppStrings.themeModeTitle,
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'system', child: Text(AppStrings.themeModeSystem)),
+                DropdownMenuItem(value: 'light', child: Text(AppStrings.themeModeLight)),
+                DropdownMenuItem(value: 'dark', child: Text(AppStrings.themeModeDark)),
+              ],
+              onChanged: (value) {
+                if (value == null) return;
+                _update(_draft.copyWith(themeMode: value));
+              },
+            ),
+            const SizedBox(height: 12),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text(AppStrings.aiFeatureToggle),

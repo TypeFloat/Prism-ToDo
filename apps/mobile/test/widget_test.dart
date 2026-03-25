@@ -222,6 +222,56 @@ void main() {
     expect(find.text('只有截止时间的任务'), findsNothing);
   });
 
+  testWidgets('theme mode follows saved settings on app start', (tester) async {
+    await tester.pumpWidget(
+      AiTodoApp(
+        taskStorage: InMemoryTaskStorage(),
+        settingsStorage: InMemorySettingsStorage(const AISettings(themeMode: 'dark')),
+      ),
+    );
+    await tester.pump();
+
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.themeMode, ThemeMode.dark);
+  });
+
+  testWidgets('theme mode can be changed and persisted', (tester) async {
+    final settings = InMemorySettingsStorage();
+
+    await tester.pumpWidget(
+      AiTodoApp(
+        taskStorage: InMemoryTaskStorage(),
+        settingsStorage: settings,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(AppStrings.settings).first);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(AppStrings.themeModeDark).last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(AppStrings.saveSettings));
+    await tester.pumpAndSettle();
+
+    final saved = await settings.loadSettings();
+    expect(saved.themeMode, 'dark');
+
+    await tester.pumpWidget(
+      AiTodoApp(
+        taskStorage: InMemoryTaskStorage(),
+        settingsStorage: settings,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.themeMode, ThemeMode.dark);
+  });
+
   testWidgets('quick input prevents duplicate creation', (tester) async {
     await tester.pumpWidget(
       AiTodoApp(

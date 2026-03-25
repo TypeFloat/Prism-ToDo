@@ -33,6 +33,10 @@ class AppStrings {
   static const settingsTitle = '设置';
   static const settingsSubtitle = 'Phase 2 先落本地配置与 OpenAI 兼容骨架，暂不要求真实联网。';
   static const aiFeatureToggle = '启用 AI 解析';
+  static const themeModeTitle = '主题模式';
+  static const themeModeSystem = '跟随系统';
+  static const themeModeLight = '白天模式';
+  static const themeModeDark = '黑夜模式';
   static const aiAdvancedMode = '高级模式';
   static const aiBaseUrl = 'Base URL';
   static const aiApiKey = 'API Key / Token';

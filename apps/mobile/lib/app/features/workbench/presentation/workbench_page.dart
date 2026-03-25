@@ -22,11 +22,13 @@ class WorkbenchPage extends StatefulWidget {
     this.taskStorage = const TaskStorage(),
     this.settingsStorage = const SettingsStorage(),
     this.aiClient = const OpenAICompatibleClient(),
+    this.onSettingsChanged,
   });
 
   final TaskStorage taskStorage;
   final SettingsStorage settingsStorage;
   final OpenAICompatibleClient aiClient;
+  final ValueChanged<AISettings>? onSettingsChanged;
 
   @override
   State<WorkbenchPage> createState() => _WorkbenchPageState();
@@ -139,6 +141,7 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
       _settings = settings;
       _isLoading = false;
     });
+    widget.onSettingsChanged?.call(settings);
     if (_hasTaskStateDiff(tasks, reconciledTasks)) {
       await widget.taskStorage.saveTasks(reconciledTasks);
     }
@@ -324,10 +327,12 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
     setState(() {
       _settings = settings;
     });
+    widget.onSettingsChanged?.call(settings);
   }
 
   void _handleSaveSettings() {
     _persistSettings();
+    widget.onSettingsChanged?.call(_settings);
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(const SnackBar(content: Text(AppStrings.settingsSaved)));
