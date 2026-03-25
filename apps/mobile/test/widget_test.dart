@@ -188,6 +188,40 @@ void main() {
     expect(sub2.isDone, isTrue);
   });
 
+  testWidgets('deadline-only tasks are excluded from today standard list', (tester) async {
+    final storage = InMemoryTaskStorage([
+      const TaskItem(
+        id: 's1',
+        title: '有开始结束时间的日程',
+        bucket: TaskBucket.today,
+        timeType: TaskTimeType.schedule,
+        startAt: '2099-03-25T10:00:00+08:00',
+        endAt: '2099-03-25T11:00:00+08:00',
+      ),
+      const TaskItem(
+        id: 'd1',
+        title: '只有截止时间的任务',
+        bucket: TaskBucket.today,
+        timeType: TaskTimeType.deadlineOnly,
+        deadline: '今天 18:00',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      AiTodoApp(
+        taskStorage: storage,
+        settingsStorage: InMemorySettingsStorage(),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text(AppStrings.today).first);
+    await tester.pump();
+
+    expect(find.text('有开始结束时间的日程'), findsOneWidget);
+    expect(find.text('只有截止时间的任务'), findsNothing);
+  });
+
   testWidgets('quick input prevents duplicate creation', (tester) async {
     await tester.pumpWidget(
       AiTodoApp(

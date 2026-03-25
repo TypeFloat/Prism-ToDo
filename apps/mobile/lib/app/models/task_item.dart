@@ -4,6 +4,8 @@ enum TaskStatus { todo, done }
 
 enum TaskCaptureState { raw, parsed }
 
+enum TaskTimeType { none, schedule, deadlineOnly }
+
 TaskBucket _taskBucketFromName(String value) {
   return TaskBucket.values.firstWhere(
     (item) => item.name == value,
@@ -25,6 +27,13 @@ TaskCaptureState _taskCaptureStateFromName(String value) {
   );
 }
 
+TaskTimeType _taskTimeTypeFromName(String value) {
+  return TaskTimeType.values.firstWhere(
+    (item) => item.name == value,
+    orElse: () => TaskTimeType.none,
+  );
+}
+
 class TaskItem {
   const TaskItem({
     required this.id,
@@ -36,6 +45,9 @@ class TaskItem {
     this.parentId,
     this.doneAt,
     this.deadline,
+    this.startAt,
+    this.endAt,
+    this.timeType = TaskTimeType.none,
     this.priority,
     this.location,
     this.notes,
@@ -50,6 +62,9 @@ class TaskItem {
   final String? parentId;
   final DateTime? doneAt;
   final String? deadline;
+  final String? startAt;
+  final String? endAt;
+  final TaskTimeType timeType;
   final String? priority;
   final String? location;
   final String? notes;
@@ -57,6 +72,8 @@ class TaskItem {
   bool get isDone => status == TaskStatus.done;
   bool get isParsed => captureState == TaskCaptureState.parsed;
   bool get isSubtask => parentId != null;
+  bool get isScheduled => timeType == TaskTimeType.schedule;
+  bool get isDeadlineOnly => timeType == TaskTimeType.deadlineOnly;
 
   TaskItem copyWith({
     String? id,
@@ -68,6 +85,9 @@ class TaskItem {
     String? parentId,
     DateTime? doneAt,
     String? deadline,
+    String? startAt,
+    String? endAt,
+    TaskTimeType? timeType,
     String? priority,
     String? location,
     String? notes,
@@ -83,6 +103,9 @@ class TaskItem {
       parentId: parentId ?? this.parentId,
       doneAt: clearDoneAt ? null : (doneAt ?? this.doneAt),
       deadline: deadline ?? this.deadline,
+      startAt: startAt ?? this.startAt,
+      endAt: endAt ?? this.endAt,
+      timeType: timeType ?? this.timeType,
       priority: priority ?? this.priority,
       location: location ?? this.location,
       notes: notes ?? this.notes,
@@ -100,6 +123,9 @@ class TaskItem {
       'parentId': parentId,
       'doneAt': doneAt?.toIso8601String(),
       'deadline': deadline,
+      'startAt': startAt,
+      'endAt': endAt,
+      'timeType': timeType.name,
       'priority': priority,
       'location': location,
       'notes': notes,
@@ -117,6 +143,9 @@ class TaskItem {
       parentId: json['parentId'] as String?,
       doneAt: json['doneAt'] == null ? null : DateTime.tryParse(json['doneAt'] as String),
       deadline: json['deadline'] as String?,
+      startAt: json['startAt'] as String?,
+      endAt: json['endAt'] as String?,
+      timeType: _taskTimeTypeFromName(json['timeType'] as String? ?? ''),
       priority: json['priority'] as String?,
       location: json['location'] as String?,
       notes: json['notes'] as String?,

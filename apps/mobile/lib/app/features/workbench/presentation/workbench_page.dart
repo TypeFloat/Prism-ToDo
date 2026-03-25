@@ -8,6 +8,7 @@ import '../../settings/data/settings_storage.dart';
 import '../../settings/domain/ai_settings.dart';
 import '../../ai/data/openai_compatible_client.dart';
 import '../../ai/domain/ai_request_error.dart';
+import '../domain/task_service.dart';
 import 'widgets/quick_input_bar.dart';
 import 'widgets/settings_panel.dart';
 import 'widgets/sidebar_nav.dart';
@@ -33,6 +34,7 @@ class WorkbenchPage extends StatefulWidget {
 
 class _WorkbenchPageState extends State<WorkbenchPage> {
   final TextEditingController _controller = TextEditingController();
+  final TaskService _taskService = const TaskService();
 
   WorkbenchView _selected = WorkbenchView.inbox;
   List<TaskItem> _tasks = const [];
@@ -130,12 +132,16 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
   Future<void> _loadState() async {
     final tasks = await widget.taskStorage.loadTasks();
     final settings = await widget.settingsStorage.loadSettings();
+    final reconciledTasks = _taskService.reconcileAutoCompletion(tasks, DateTime.now());
     if (!mounted) return;
     setState(() {
-      _tasks = tasks;
+      _tasks = reconciledTasks;
       _settings = settings;
       _isLoading = false;
     });
+    if (_hasTaskStateDiff(tasks, reconciledTasks)) {
+      await widget.taskStorage.saveTasks(reconciledTasks);
+    }
   }
 
   Future<void> _persistTasks() => widget.taskStorage.saveTasks(_tasks);
@@ -147,7 +153,8 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
     final tasks = _tasks.where((task) => task.parentId == null);
     switch (view) {
       case WorkbenchView.today:
-        return tasks.where((task) => task.bucket == TaskBucket.today && !task.isDone).toList();
+        // deadline-only 任务不进入标准时间轴（today 主列表）
+        return tasks.where((task) => task.bucket == TaskBucket.today && !task.isDone && !task.isDeadlineOnly).toList();
       case WorkbenchView.completed:
         return tasks.where((task) => task.isDone).toList();
       case WorkbenchView.settings:
@@ -163,6 +170,18 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
       map.putIfAbsent(task.parentId!, () => []).add(task);
     }
     return map;
+  }
+
+  bool _hasTaskStateDiff(List<TaskItem> before, List<TaskItem> after) {
+    if (before.length != after.length) return true;
+    for (var i = 0; i < before.length; i++) {
+      final b = before[i];
+      final a = after[i];
+      if (b.id != a.id || b.status != a.status || b.doneAt != a.doneAt) {
+        return true;
+      }
+    }
+    return false;
   }
 
   String _emptyHintForSelectedView() {
