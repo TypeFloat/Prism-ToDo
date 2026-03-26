@@ -60,6 +60,7 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
 
   @override
   Widget build(BuildContext context) {
+    final inboxTasks = _topLevelTasksFor(WorkbenchView.inbox);
     final todayTasks = _topLevelTasksFor(WorkbenchView.today);
     final completedTasks = _topLevelTasksFor(WorkbenchView.completed);
     final calendarTasks = _topLevelTasksFor(WorkbenchView.calendar);
@@ -72,6 +73,7 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                 children: [
                   SidebarNav(
                     selected: _selected,
+                    inboxCount: inboxTasks.length,
                     todayCount: todayTasks.length,
                     completedCount: completedTasks.length,
                     calendarCount: calendarTasks.length,
@@ -106,7 +108,7 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                                   style: Theme.of(context).textTheme.bodyLarge,
                                 ),
                                 const SizedBox(height: 20),
-                                if (_selected != WorkbenchView.calendar) ...[
+                                if (_selected == WorkbenchView.inbox) ...[
                                   QuickInputBar(
                                     controller: _controller,
                                     onSubmit: _handleQuickAdd,
