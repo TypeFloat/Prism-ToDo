@@ -63,10 +63,21 @@ class TaskStorage {
 
   Future<File> _storageFile() async {
     final directory = baseDirectory ?? await getApplicationSupportDirectory();
-    final appDirectory = Directory('${directory.path}/ai_todo_mobile');
-    if (!await appDirectory.exists()) {
-      await appDirectory.create(recursive: true);
+
+    final unifiedDir = Directory('${directory.path}/prism_todo');
+    if (!await unifiedDir.exists()) {
+      await unifiedDir.create(recursive: true);
     }
-    return File('${appDirectory.path}/tasks.json');
+    final unifiedFile = File('${unifiedDir.path}/tasks.json');
+    if (await unifiedFile.exists()) return unifiedFile;
+
+    final legacyDir = Directory('${directory.path}/ai_todo_mobile');
+    final legacyFile = File('${legacyDir.path}/tasks.json');
+    if (await legacyFile.exists()) {
+      await legacyFile.copy(unifiedFile.path);
+      return unifiedFile;
+    }
+
+    return unifiedFile;
   }
 }

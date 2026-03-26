@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -62,6 +63,8 @@ class OpenAICompatibleClient implements AIClient {
         statusCode: response.statusCode,
         rawResponse: decodedBody,
       );
+    } on TimeoutException {
+      return AIConnectionResult(success: false, message: '请求超时：连接在设定时间内无响应（默认 30 秒）。');
     } on SocketException catch (error) {
       return AIConnectionResult(success: false, message: 'DNS/网络错误：${error.message}');
     } on HandshakeException catch (error) {
@@ -101,13 +104,17 @@ class OpenAICompatibleClient implements AIClient {
 
       final parsed = parseStructuredContent(content);
       final normalized = (parsed['title'] as String?)?.trim();
+      final deadline = (parsed['deadline'] as String?)?.trim();
+      final priority = (parsed['priority'] as String?)?.trim();
+      final location = (parsed['location'] as String?)?.trim();
+      final notes = (parsed['notes'] as String?)?.trim();
       return AIParseResult(
         normalizedTitle: normalized == null || normalized.isEmpty ? rawText.trim().replaceAll(RegExp(r'\s+'), ' ') : normalized,
-        summary: content,
-        deadline: (parsed['deadline'] as String?)?.trim(),
-        priority: (parsed['priority'] as String?)?.trim(),
-        location: (parsed['location'] as String?)?.trim(),
-        notes: (parsed['notes'] as String?)?.trim(),
+        summary: buildReadableSummary(deadline: deadline, priority: priority, location: location, notes: notes),
+        deadline: _nonEmpty(deadline),
+        priority: _nonEmpty(priority),
+        location: _nonEmpty(location),
+        notes: _nonEmpty(notes),
       );
     } on SocketException catch (error) {
       throw AIRequestError('DNS/网络错误：${error.message}');
@@ -161,11 +168,14 @@ class OpenAICompatibleClient implements AIClient {
   Uri buildChatCompletionsUri(AISettings settings) {
     final base = settings.effectiveBaseUrl.trim().replaceAll(RegExp(r'/+$'), '');
     final uri = Uri.parse(base);
-    if (uri.path.endsWith('/v1/chat/completions')) return uri;
-    if (uri.path.endsWith('/v1')) {
-      return uri.replace(path: '${uri.path}/chat/completions');
-    }
-    return uri.replace(path: '${uri.path}/v1/chat/completions');
+    final normalizedPath = uri.path.replaceAll(RegExp(r'/+$'), '');
+
+    if (normalizedPath.endsWith('/chat/completions')) return uri.replace(path: normalizedPath);
+    if (normalizedPath.endsWith('/v1')) return uri.replace(path: '$normalizedPath/chat/completions');
+    if (normalizedPath.contains('/v1/')) return uri.replace(path: '$normalizedPath/chat/completions');
+
+    final prefix = normalizedPath.isEmpty ? '' : normalizedPath;
+    return uri.replace(path: '$prefix/v1/chat/completions');
   }
 
   Map<String, String> buildHeaders(AISettings settings) {
@@ -210,5 +220,26 @@ class OpenAICompatibleClient implements AIClient {
     final decoded = jsonDecode(content);
     if (decoded is Map<String, dynamic>) return decoded;
     throw const AIRequestError('AI 返回内容不是合法 JSON 对象。');
+  }
+
+  String buildReadableSummary({String? deadline, String? priority, String? location, String? notes}) {
+    final parts = <String>[];
+    final d = _nonEmpty(deadline);
+    final p = _nonEmpty(priority);
+    final l = _nonEmpty(location);
+    final n = _nonEmpty(notes);
+
+    if (d != null) parts.add('截止：$d');
+    if (p != null) parts.add('优先级：$p');
+    if (l != null) parts.add('地点：$l');
+    if (n != null) parts.add('备注：$n');
+
+    if (parts.isEmpty) return 'AI 已解析任务标题，可继续补充细节。';
+    return parts.join('；');
+  }
+
+  String? _nonEmpty(String? value) {
+    final trimmed = value?.trim() ?? '';
+    return trimmed.isEmpty ? null : trimmed;
   }
 }

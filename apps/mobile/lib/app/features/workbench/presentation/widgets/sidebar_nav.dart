@@ -10,6 +10,7 @@ class SidebarNav extends StatelessWidget {
     required this.inboxCount,
     required this.todayCount,
     required this.completedCount,
+    required this.calendarCount,
     required this.onSelected,
   });
 
@@ -17,6 +18,7 @@ class SidebarNav extends StatelessWidget {
   final int inboxCount;
   final int todayCount;
   final int completedCount;
+  final int calendarCount;
   final ValueChanged<WorkbenchView> onSelected;
 
   @override
@@ -26,7 +28,7 @@ class SidebarNav extends StatelessWidget {
       width: 240,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surfaceContainerLow,
         border: Border(right: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.6))),
       ),
       child: Column(
@@ -58,6 +60,14 @@ class SidebarNav extends StatelessWidget {
             count: completedCount,
             selected: selected == WorkbenchView.completed,
             onTap: () => onSelected(WorkbenchView.completed),
+          ),
+          const SizedBox(height: 8),
+          _NavItem(
+            icon: Icons.calendar_month_outlined,
+            label: AppStrings.calendar,
+            count: calendarCount,
+            selected: selected == WorkbenchView.calendar,
+            onTap: () => onSelected(WorkbenchView.calendar),
           ),
           const Spacer(),
           _NavItem(

@@ -66,6 +66,7 @@ class _AiTodoAppState extends State<AiTodoApp> {
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4F46E5), brightness: Brightness.dark),
         useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFF121420),
       ),
       home: WorkbenchPage(
         taskStorage: widget.taskStorage,

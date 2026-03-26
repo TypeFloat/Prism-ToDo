@@ -25,10 +25,11 @@ class TaskListSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(color: colorScheme.surfaceContainerLow, borderRadius: BorderRadius.circular(16)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -39,7 +40,7 @@ class TaskListSection extends StatelessWidget {
           if (tasks.isEmpty)
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: const Color(0xFFF7F8FC), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
               child: Text(emptyHint),
             )
           else
@@ -85,13 +86,17 @@ class _TaskCard extends StatelessWidget {
     final theme = Theme.of(context);
     final chipColor = task.isParsed ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerHighest;
     final chipLabel = task.isParsed ? AppStrings.aiParsed : AppStrings.aiPending;
-    final summary = task.aiSummary ?? AppStrings.defaultSummary;
+    final summary = (task.aiSummary?.trim().isNotEmpty ?? false) ? task.aiSummary!.trim() : AppStrings.defaultSummary;
+    final deadline = _nonEmpty(task.deadline);
+    final priority = _nonEmpty(task.priority);
+    final location = _nonEmpty(task.location);
+    final notes = _nonEmpty(task.notes);
     final openSubtasks = subtasks.where((task) => !task.isDone).length;
 
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 10),
-      color: const Color(0xFFF7F8FC),
+      color: theme.colorScheme.surfaceContainerHigh,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -134,17 +139,17 @@ class _TaskCard extends StatelessWidget {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(12)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(summary, style: theme.textTheme.bodyMedium),
-                  if (task.deadline != null || task.priority != null || task.location != null || task.notes != null) ...[
+                  if (deadline != null || priority != null || location != null || notes != null) ...[
                     const SizedBox(height: 10),
-                    if (task.deadline != null) Text('截止时间：${task.deadline}', style: theme.textTheme.bodySmall),
-                    if (task.priority != null) Text('优先级：${task.priority}', style: theme.textTheme.bodySmall),
-                    if (task.location != null) Text('地点：${task.location}', style: theme.textTheme.bodySmall),
-                    if (task.notes != null) Text('备注：${task.notes}', style: theme.textTheme.bodySmall),
+                    if (deadline != null) Text('截止时间：$deadline', style: theme.textTheme.bodySmall),
+                    if (priority != null) Text('优先级：$priority', style: theme.textTheme.bodySmall),
+                    if (location != null) Text('地点：$location', style: theme.textTheme.bodySmall),
+                    if (notes != null) Text('备注：$notes', style: theme.textTheme.bodySmall),
                   ],
                 ],
               ),
@@ -186,5 +191,10 @@ class _TaskCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String? _nonEmpty(String? value) {
+    final trimmed = value?.trim() ?? '';
+    return trimmed.isEmpty ? null : trimmed;
   }
 }

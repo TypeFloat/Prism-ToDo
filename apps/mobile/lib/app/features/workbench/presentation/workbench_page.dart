@@ -9,12 +9,13 @@ import '../../settings/domain/ai_settings.dart';
 import '../../ai/data/openai_compatible_client.dart';
 import '../../ai/domain/ai_request_error.dart';
 import '../domain/task_service.dart';
+import 'widgets/calendar_section.dart';
 import 'widgets/quick_input_bar.dart';
 import 'widgets/settings_panel.dart';
 import 'widgets/sidebar_nav.dart';
 import 'widgets/task_list_section.dart';
 
-enum WorkbenchView { inbox, today, completed, settings }
+enum WorkbenchView { inbox, today, completed, calendar, settings }
 
 class WorkbenchPage extends StatefulWidget {
   const WorkbenchPage({
@@ -62,6 +63,7 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
     final inboxTasks = _topLevelTasksFor(WorkbenchView.inbox);
     final todayTasks = _topLevelTasksFor(WorkbenchView.today);
     final completedTasks = _topLevelTasksFor(WorkbenchView.completed);
+    final calendarTasks = _topLevelTasksFor(WorkbenchView.calendar);
 
     return Scaffold(
       body: _isLoading
@@ -74,6 +76,7 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                     inboxCount: inboxTasks.length,
                     todayCount: todayTasks.length,
                     completedCount: completedTasks.length,
+                    calendarCount: calendarTasks.length,
                     onSelected: (view) {
                       setState(() {
                         _selected = view;
@@ -105,21 +108,28 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                                   style: Theme.of(context).textTheme.bodyLarge,
                                 ),
                                 const SizedBox(height: 20),
-                                QuickInputBar(
-                                  controller: _controller,
-                                  onSubmit: _handleQuickAdd,
-                                ),
-                                const SizedBox(height: 20),
-                                Expanded(
-                                  child: TaskListSection(
-                                    title: AppStrings.bucketLabel(_selected.name),
-                                    tasks: _tasksForSelectedView(),
-                                    subtaskLookup: _buildSubtaskLookup(),
-                                    onToggleDone: _handleToggleDone,
-                                    onConfirmParse: _handleConfirmParse,
-                                    onMoveToToday: _handleMoveToToday,
-                                    emptyHint: _emptyHintForSelectedView(),
+                                if (_selected != WorkbenchView.calendar) ...[
+                                  QuickInputBar(
+                                    controller: _controller,
+                                    onSubmit: _handleQuickAdd,
                                   ),
+                                  const SizedBox(height: 20),
+                                ],
+                                Expanded(
+                                  child: _selected == WorkbenchView.calendar
+                                      ? CalendarSection(
+                                          tasks: _tasksForSelectedView(),
+                                          emptyHint: _emptyHintForSelectedView(),
+                                        )
+                                      : TaskListSection(
+                                          title: AppStrings.bucketLabel(_selected.name),
+                                          tasks: _tasksForSelectedView(),
+                                          subtaskLookup: _buildSubtaskLookup(),
+                                          onToggleDone: _handleToggleDone,
+                                          onConfirmParse: _handleConfirmParse,
+                                          onMoveToToday: _handleMoveToToday,
+                                          emptyHint: _emptyHintForSelectedView(),
+                                        ),
                                 ),
                               ],
                             ),
@@ -160,6 +170,11 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
         return tasks.where((task) => task.bucket == TaskBucket.today && !task.isDone && !task.isDeadlineOnly).toList();
       case WorkbenchView.completed:
         return tasks.where((task) => task.isDone).toList();
+      case WorkbenchView.calendar:
+        return tasks
+            .where((task) => !task.isDone)
+            .where((task) => (task.deadline?.trim().isNotEmpty ?? false) || (task.startAt?.trim().isNotEmpty ?? false) || (task.endAt?.trim().isNotEmpty ?? false))
+            .toList();
       case WorkbenchView.settings:
         return const [];
       case WorkbenchView.inbox:
@@ -193,6 +208,8 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
         return AppStrings.todayEmptyHint;
       case WorkbenchView.completed:
         return AppStrings.completedEmptyHint;
+      case WorkbenchView.calendar:
+        return AppStrings.calendarEmptyHint;
       case WorkbenchView.settings:
         return '';
       case WorkbenchView.inbox:

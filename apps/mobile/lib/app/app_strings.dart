@@ -7,6 +7,7 @@ class AppStrings {
   static const today = '今天';
   static const inbox = '收件箱';
   static const completed = '已完成';
+  static const calendar = '日历';
   static const settings = '设置';
 
   static const workbenchTitle = 'Prism ToDo';
@@ -21,6 +22,7 @@ class AppStrings {
   static const todayEmptyHint = '今天暂无未完成任务。';
   static const inboxEmptyHint = '收件箱暂无未完成任务。';
   static const completedEmptyHint = '还没有已完成任务。';
+  static const calendarEmptyHint = '还没有可展示时间信息的任务。';
 
   static const itemCountSuffix = '项';
   static const aiParsed = 'AI 已解析';
@@ -69,6 +71,8 @@ class AppStrings {
         return today;
       case 'completed':
         return completed;
+      case 'calendar':
+        return calendar;
       case 'settings':
         return settings;
       default:
