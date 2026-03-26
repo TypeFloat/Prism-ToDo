@@ -60,7 +60,6 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
 
   @override
   Widget build(BuildContext context) {
-    final inboxTasks = _topLevelTasksFor(WorkbenchView.inbox);
     final todayTasks = _topLevelTasksFor(WorkbenchView.today);
     final completedTasks = _topLevelTasksFor(WorkbenchView.completed);
     final calendarTasks = _topLevelTasksFor(WorkbenchView.calendar);
@@ -73,7 +72,6 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                 children: [
                   SidebarNav(
                     selected: _selected,
-                    inboxCount: inboxTasks.length,
                     todayCount: todayTasks.length,
                     completedCount: completedTasks.length,
                     calendarCount: calendarTasks.length,
@@ -126,6 +124,7 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                                           tasks: _tasksForSelectedView(),
                                           subtaskLookup: _buildSubtaskLookup(),
                                           onToggleDone: _handleToggleDone,
+                                          onDelete: _handleDeleteTask,
                                           onConfirmParse: _handleConfirmParse,
                                           onMoveToToday: _handleMoveToToday,
                                           emptyHint: _emptyHintForSelectedView(),
@@ -293,6 +292,26 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
           .toList();
     });
     _persistTasks();
+  }
+
+  Future<void> _handleDeleteTask(String taskId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除任务'),
+        content: const Text('确认删除该任务？其子任务也会一并删除。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text(AppStrings.cancel)),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('删除')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() {
+      _tasks = _tasks.where((task) => task.id != taskId && task.parentId != taskId).toList();
+    });
+    await _persistTasks();
   }
 
   void _handleConfirmParse(String taskId) async {

@@ -7,7 +7,6 @@ class SidebarNav extends StatelessWidget {
   const SidebarNav({
     super.key,
     required this.selected,
-    required this.inboxCount,
     required this.todayCount,
     required this.completedCount,
     required this.calendarCount,
@@ -15,7 +14,6 @@ class SidebarNav extends StatelessWidget {
   });
 
   final WorkbenchView selected;
-  final int inboxCount;
   final int todayCount;
   final int completedCount;
   final int calendarCount;
@@ -38,14 +36,6 @@ class SidebarNav extends StatelessWidget {
           const SizedBox(height: 4),
           Text(AppStrings.appVersionLabel, style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 20),
-          _NavItem(
-            icon: Icons.inbox_outlined,
-            label: AppStrings.inbox,
-            count: inboxCount,
-            selected: selected == WorkbenchView.inbox,
-            onTap: () => onSelected(WorkbenchView.inbox),
-          ),
-          const SizedBox(height: 8),
           _NavItem(
             icon: Icons.today_outlined,
             label: AppStrings.today,

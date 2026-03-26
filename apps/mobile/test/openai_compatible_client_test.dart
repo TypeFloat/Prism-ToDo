@@ -131,7 +131,7 @@ void main() {
     expect(result.message, anyOf(contains('DNS'), contains('无法解析域名')));
   });
 
-  test('url preflight returns incompatible hint when endpoint is 404', () async {
+  test('get preflight 404 should not block; final POST 404 returns incompatible hint', () async {
     final mock = MockClient((request) async {
       if (request.method == 'GET') {
         return http.Response('404 page not found', 404);
@@ -150,7 +150,7 @@ void main() {
 
     final result = await client.testConnection(settings: settings);
     expect(result.success, isFalse);
-    expect(result.message, contains('URL 预检失败'));
+    expect(result.message, contains('URL 不兼容'));
   });
 
   test('parseTask extracts structured fields from JSON content', () async {

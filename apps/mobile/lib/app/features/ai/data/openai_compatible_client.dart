@@ -146,10 +146,12 @@ class OpenAICompatibleClient implements AIClient {
 
     try {
       final probe = await _client.get(uri).timeout(Duration(seconds: int.tryParse(settings.timeoutSeconds) ?? 30));
-      if (probe.statusCode == 404) {
+      // 注意：很多 OpenAI 兼容网关不支持 GET /chat/completions，会返回 404/405。
+      // 这里仅做弱探测，不据此判失败，最终以后续 POST 结果为准。
+      if (probe.statusCode >= 500) {
         return AIConnectionResult(
           success: false,
-          message: 'URL 预检失败：$uri 返回 404，可能不是 OpenAI 兼容接口。',
+          message: '网关预检失败：$uri 返回 ${probe.statusCode}。',
           statusCode: probe.statusCode,
           rawResponse: decodeResponseBody(probe),
         );

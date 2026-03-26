@@ -31,6 +31,8 @@ class AppStrings {
   static const confirmed = '已确认';
   static const confirmParse = '确认解析';
   static const moveToToday = '移到今天';
+  static const taskTypeSchedule = '日程型';
+  static const taskTypeDeadline = '截止型';
 
   static const settingsTitle = '设置';
   static const settingsSubtitle = 'Phase 2 先落本地配置与 OpenAI 兼容骨架，暂不要求真实联网。';

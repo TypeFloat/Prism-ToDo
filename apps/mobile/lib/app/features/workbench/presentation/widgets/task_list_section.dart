@@ -10,6 +10,7 @@ class TaskListSection extends StatelessWidget {
     required this.tasks,
     required this.subtaskLookup,
     required this.onToggleDone,
+    required this.onDelete,
     required this.emptyHint,
     required this.onConfirmParse,
     required this.onMoveToToday,
@@ -19,6 +20,7 @@ class TaskListSection extends StatelessWidget {
   final List<TaskItem> tasks;
   final Map<String, List<TaskItem>> subtaskLookup;
   final ValueChanged<String> onToggleDone;
+  final ValueChanged<String> onDelete;
   final String emptyHint;
   final ValueChanged<String> onConfirmParse;
   final ValueChanged<String> onMoveToToday;
@@ -54,6 +56,7 @@ class TaskListSection extends StatelessWidget {
                     task: task,
                     subtasks: subtasks,
                     onToggleDone: () => onToggleDone(task.id),
+                    onDelete: () => onDelete(task.id),
                     onConfirmParse: () => onConfirmParse(task.id),
                     onMoveToToday: task.bucket == TaskBucket.inbox && !task.isDone ? () => onMoveToToday(task.id) : null,
                   );
@@ -71,6 +74,7 @@ class _TaskCard extends StatelessWidget {
     required this.task,
     required this.subtasks,
     required this.onToggleDone,
+    required this.onDelete,
     required this.onConfirmParse,
     this.onMoveToToday,
   });
@@ -78,6 +82,7 @@ class _TaskCard extends StatelessWidget {
   final TaskItem task;
   final List<TaskItem> subtasks;
   final VoidCallback onToggleDone;
+  final VoidCallback onDelete;
   final VoidCallback onConfirmParse;
   final VoidCallback? onMoveToToday;
 
@@ -91,6 +96,9 @@ class _TaskCard extends StatelessWidget {
     final priority = _nonEmpty(task.priority);
     final location = _nonEmpty(task.location);
     final notes = _nonEmpty(task.notes);
+    final taskTypeLabel = task.isScheduled
+        ? AppStrings.taskTypeSchedule
+        : (task.isDeadlineOnly ? AppStrings.taskTypeDeadline : null);
     final openSubtasks = subtasks.where((task) => !task.isDone).length;
 
     return Card(
@@ -117,9 +125,23 @@ class _TaskCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        AppStrings.bucketLabel(task.bucket.name),
-                        style: theme.textTheme.bodySmall,
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          Text(
+                            AppStrings.bucketLabel(task.bucket.name),
+                            style: theme.textTheme.bodySmall,
+                          ),
+                          if (taskTypeLabel != null)
+                            Text(
+                              taskTypeLabel,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                        ],
                       ),
                       if (subtasks.isNotEmpty) ...[
                         const SizedBox(height: 4),
@@ -185,6 +207,11 @@ class _TaskCard extends StatelessWidget {
                     icon: const Icon(Icons.arrow_forward_outlined),
                     label: const Text(AppStrings.moveToToday),
                   ),
+                OutlinedButton.icon(
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('删除'),
+                ),
               ],
             ),
           ],
