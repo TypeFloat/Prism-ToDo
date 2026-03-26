@@ -11,6 +11,7 @@ class TaskListSection extends StatelessWidget {
     required this.subtaskLookup,
     required this.onToggleDone,
     required this.onDelete,
+    required this.onEdit,
     required this.emptyHint,
     required this.onConfirmParse,
     required this.onMoveToToday,
@@ -21,6 +22,7 @@ class TaskListSection extends StatelessWidget {
   final Map<String, List<TaskItem>> subtaskLookup;
   final ValueChanged<String> onToggleDone;
   final ValueChanged<String> onDelete;
+  final ValueChanged<String> onEdit;
   final String emptyHint;
   final ValueChanged<String> onConfirmParse;
   final ValueChanged<String> onMoveToToday;
@@ -57,6 +59,7 @@ class TaskListSection extends StatelessWidget {
                     subtasks: subtasks,
                     onToggleDone: () => onToggleDone(task.id),
                     onDelete: () => onDelete(task.id),
+                    onEdit: () => onEdit(task.id),
                     onConfirmParse: () => onConfirmParse(task.id),
                     onMoveToToday: task.bucket == TaskBucket.inbox && !task.isDone ? () => onMoveToToday(task.id) : null,
                   );
@@ -75,6 +78,7 @@ class _TaskCard extends StatelessWidget {
     required this.subtasks,
     required this.onToggleDone,
     required this.onDelete,
+    required this.onEdit,
     required this.onConfirmParse,
     this.onMoveToToday,
   });
@@ -83,6 +87,7 @@ class _TaskCard extends StatelessWidget {
   final List<TaskItem> subtasks;
   final VoidCallback onToggleDone;
   final VoidCallback onDelete;
+  final VoidCallback onEdit;
   final VoidCallback onConfirmParse;
   final VoidCallback? onMoveToToday;
 
@@ -207,6 +212,11 @@ class _TaskCard extends StatelessWidget {
                     icon: const Icon(Icons.arrow_forward_outlined),
                     label: const Text(AppStrings.moveToToday),
                   ),
+                OutlinedButton.icon(
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('编辑'),
+                ),
                 OutlinedButton.icon(
                   onPressed: onDelete,
                   icon: const Icon(Icons.delete_outline),

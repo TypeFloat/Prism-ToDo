@@ -127,6 +127,7 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                                           subtaskLookup: _buildSubtaskLookup(),
                                           onToggleDone: _handleToggleDone,
                                           onDelete: _handleDeleteTask,
+                                          onEdit: _handleEditTask,
                                           onConfirmParse: _handleConfirmParse,
                                           onMoveToToday: _handleMoveToToday,
                                           emptyHint: _emptyHintForSelectedView(),
@@ -294,6 +295,143 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
           .toList();
     });
     _persistTasks();
+  }
+
+  Future<void> _handleEditTask(String taskId) async {
+    final original = _tasks.firstWhere((task) => task.id == taskId);
+
+    final titleController = TextEditingController(text: original.title);
+    final notesController = TextEditingController(text: original.notes ?? '');
+    final startController = TextEditingController(text: original.startAt ?? '');
+    final endController = TextEditingController(text: original.endAt ?? '');
+    final dueController = TextEditingController(text: original.deadline ?? '');
+
+    String taskType = original.isScheduled
+        ? 'schedule'
+        : (original.isDeadlineOnly ? 'deadline' : 'todo');
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: const Text('编辑任务'),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(labelText: '标题'),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    initialValue: taskType,
+                    decoration: const InputDecoration(labelText: '任务类型'),
+                    items: const [
+                      DropdownMenuItem(value: 'todo', child: Text('普通待办')),
+                      DropdownMenuItem(value: 'schedule', child: Text('日程型任务')),
+                      DropdownMenuItem(value: 'deadline', child: Text('截止型任务')),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setLocalState(() => taskType = value);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  if (taskType == 'schedule') ...[
+                    TextField(
+                      controller: startController,
+                      decoration: const InputDecoration(labelText: '开始时间（ISO 8601 或自定义文本）'),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: endController,
+                      decoration: const InputDecoration(labelText: '结束时间（可选）'),
+                    ),
+                  ] else if (taskType == 'deadline') ...[
+                    TextField(
+                      controller: dueController,
+                      decoration: const InputDecoration(labelText: '截止时间（due）'),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: notesController,
+                    decoration: const InputDecoration(labelText: '备注'),
+                    minLines: 2,
+                    maxLines: 4,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text(AppStrings.cancel)),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('保存')),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final title = titleController.text.trim();
+    if (title.isEmpty) return;
+
+    final startAt = startController.text.trim();
+    final endAt = endController.text.trim();
+    final deadline = dueController.text.trim();
+    final notes = notesController.text.trim();
+
+    if (taskType == 'schedule' && startAt.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('日程型任务必须填写开始时间')));
+      return;
+    }
+
+    setState(() {
+      _tasks = _tasks.map((task) {
+        if (task.id != taskId) return task;
+
+        if (taskType == 'schedule') {
+          return task.copyWith(
+            title: title,
+            bucket: TaskBucket.today,
+            timeType: TaskTimeType.schedule,
+            startAt: startAt,
+            endAt: endAt.isEmpty ? null : endAt,
+            deadline: null,
+            notes: notes.isEmpty ? null : notes,
+          );
+        }
+
+        if (taskType == 'deadline') {
+          return task.copyWith(
+            title: title,
+            bucket: TaskBucket.today,
+            timeType: TaskTimeType.deadlineOnly,
+            startAt: null,
+            endAt: null,
+            deadline: deadline.isEmpty ? null : deadline,
+            notes: notes.isEmpty ? null : notes,
+          );
+        }
+
+        return task.copyWith(
+          title: title,
+          bucket: TaskBucket.inbox,
+          timeType: TaskTimeType.none,
+          startAt: null,
+          endAt: null,
+          deadline: null,
+          notes: notes.isEmpty ? null : notes,
+        );
+      }).toList();
+    });
+
+    await _persistTasks();
   }
 
   Future<void> _handleDeleteTask(String taskId) async {
