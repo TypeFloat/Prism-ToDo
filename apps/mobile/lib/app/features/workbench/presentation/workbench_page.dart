@@ -42,6 +42,7 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
   WorkbenchView _selected = WorkbenchView.inbox;
   List<TaskItem> _tasks = const [];
   AISettings _settings = const AISettings();
+  DateTime _calendarDate = DateTime.now();
   bool _isLoading = true;
   bool _isTestingConnection = false;
   String? _lastConnectionResult;
@@ -120,9 +121,13 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                                       ? CalendarSection(
                                           tasks: _tasksForSelectedView(),
                                           emptyHint: _emptyHintForSelectedView(),
+                                          selectedDate: _calendarDate,
+                                          onToday: () => setState(() => _calendarDate = DateTime.now()),
+                                          onPreviousDay: () => setState(() => _calendarDate = _calendarDate.subtract(const Duration(days: 1))),
+                                          onNextDay: () => setState(() => _calendarDate = _calendarDate.add(const Duration(days: 1))),
                                         )
                                       : TaskListSection(
-                                          title: AppStrings.bucketLabel(_selected.name),
+                                          title: _selected == WorkbenchView.today ? _todaySectionTitle() : AppStrings.bucketLabel(_selected.name),
                                           tasks: _tasksForSelectedView(),
                                           subtaskLookup: _buildSubtaskLookup(),
                                           onToggleDone: _handleToggleDone,
@@ -169,8 +174,9 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
     final tasks = _tasks.where((task) => task.parentId == null);
     switch (view) {
       case WorkbenchView.today:
-        // deadline-only 任务不进入标准时间轴（today 主列表）
-        return tasks.where((task) => task.bucket == TaskBucket.today && !task.isDone && !task.isDeadlineOnly).toList();
+        final todayTasks = tasks.where((task) => task.bucket == TaskBucket.today && !task.isDone).toList();
+        todayTasks.sort((a, b) => _todayRank(a).compareTo(_todayRank(b)));
+        return todayTasks;
       case WorkbenchView.completed:
         return tasks.where((task) => task.isDone).toList();
       case WorkbenchView.calendar:
@@ -218,6 +224,27 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
       case WorkbenchView.inbox:
         return AppStrings.inboxEmptyHint;
     }
+  }
+
+  String _todaySectionTitle() {
+    final tasks = _tasks.where((task) => task.parentId == null && task.bucket == TaskBucket.today && !task.isDone);
+    final schedule = tasks.where((task) => task.isScheduled).length;
+    final deadline = tasks.where((task) => task.isDeadlineOnly && !_isOverdue(task)).length;
+    final overdue = tasks.where((task) => _isOverdue(task)).length;
+    return '${AppStrings.today}（日程 $schedule / 截止 $deadline / 逾期 $overdue）';
+  }
+
+  int _todayRank(TaskItem task) {
+    if (task.isScheduled) return 0;
+    if (_isOverdue(task)) return 2;
+    if (task.isDeadlineOnly) return 1;
+    return 3;
+  }
+
+  bool _isOverdue(TaskItem task) {
+    final deadline = DateTime.tryParse(task.deadline?.trim() ?? '');
+    if (deadline == null) return false;
+    return deadline.isBefore(DateTime.now());
   }
 
   void _handleQuickAdd() {

@@ -188,7 +188,7 @@ void main() {
     expect(sub2.isDone, isTrue);
   });
 
-  testWidgets('deadline-only tasks are excluded from today standard list', (tester) async {
+  testWidgets('today view keeps scheduled and deadline tasks together for execution', (tester) async {
     final storage = InMemoryTaskStorage([
       const TaskItem(
         id: 's1',
@@ -203,7 +203,7 @@ void main() {
         title: '只有截止时间的任务',
         bucket: TaskBucket.today,
         timeType: TaskTimeType.deadlineOnly,
-        deadline: '今天 18:00',
+        deadline: '2099-03-25T18:00:00+08:00',
       ),
     ]);
 
@@ -219,7 +219,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('有开始结束时间的日程'), findsOneWidget);
-    expect(find.text('只有截止时间的任务'), findsNothing);
+    expect(find.text('只有截止时间的任务'), findsOneWidget);
   });
 
   testWidgets('theme mode follows saved settings on app start', (tester) async {
