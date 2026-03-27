@@ -106,6 +106,8 @@ class _TaskCard extends StatelessWidget {
     final priority = _nonEmpty(task.priority);
     final location = _nonEmpty(task.location);
     final notes = _nonEmpty(task.notes);
+    final reminder = _reminderLabel(task.reminder);
+    final deadlineState = _deadlineState(task.deadline);
     final taskTypeLabel = task.isScheduled
         ? AppStrings.taskTypeSchedule
         : (task.isDeadlineOnly ? AppStrings.taskTypeDeadline : null);
@@ -176,9 +178,18 @@ class _TaskCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(summary, style: theme.textTheme.bodyMedium),
-                  if (deadline != null || priority != null || location != null || notes != null) ...[
+                  if (deadline != null || priority != null || location != null || notes != null || reminder != null || deadlineState != null) ...[
                     const SizedBox(height: 10),
                     if (deadline != null) Text('截止时间：$deadline', style: theme.textTheme.bodySmall),
+                    if (deadlineState != null)
+                      Text(
+                        deadlineState,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: deadlineState.startsWith('已逾期') ? theme.colorScheme.error : theme.colorScheme.tertiary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    if (reminder != null) Text('提醒：$reminder', style: theme.textTheme.bodySmall),
                     if (priority != null) Text('优先级：$priority', style: theme.textTheme.bodySmall),
                     if (location != null) Text('地点：$location', style: theme.textTheme.bodySmall),
                     if (notes != null) Text('备注：$notes', style: theme.textTheme.bodySmall),
@@ -244,5 +255,36 @@ class _TaskCard extends StatelessWidget {
   String? _nonEmpty(String? value) {
     final trimmed = value?.trim() ?? '';
     return trimmed.isEmpty ? null : trimmed;
+  }
+
+  String? _reminderLabel(String? reminder) {
+    switch ((reminder ?? 'none').trim()) {
+      case 'at_time':
+        return AppStrings.reminderAtTime;
+      case '5m':
+        return AppStrings.reminderBefore5m;
+      case '15m':
+        return AppStrings.reminderBefore15m;
+      case '30m':
+        return AppStrings.reminderBefore30m;
+      case '1h':
+        return AppStrings.reminderBefore1h;
+      case '1d':
+        return AppStrings.reminderBefore1d;
+      default:
+        return null;
+    }
+  }
+
+  String? _deadlineState(String? deadlineText) {
+    final raw = deadlineText?.trim() ?? '';
+    if (raw.isEmpty) return null;
+    final deadline = DateTime.tryParse(raw);
+    if (deadline == null) return null;
+    final now = DateTime.now();
+    if (deadline.isBefore(now)) return '已逾期';
+    final diff = deadline.difference(now);
+    if (diff <= const Duration(hours: 24)) return '24小时内到期';
+    return null;
   }
 }

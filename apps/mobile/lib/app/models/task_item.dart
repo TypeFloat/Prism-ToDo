@@ -51,6 +51,7 @@ class TaskItem {
     this.priority,
     this.location,
     this.notes,
+    this.reminder,
   });
 
   final String id;
@@ -68,6 +69,7 @@ class TaskItem {
   final String? priority;
   final String? location;
   final String? notes;
+  final String? reminder;
 
   bool get isDone => status == TaskStatus.done;
   bool get isParsed => captureState == TaskCaptureState.parsed;
@@ -91,6 +93,7 @@ class TaskItem {
     String? priority,
     String? location,
     String? notes,
+    String? reminder,
     bool clearDoneAt = false,
   }) {
     return TaskItem(
@@ -109,6 +112,7 @@ class TaskItem {
       priority: priority ?? this.priority,
       location: location ?? this.location,
       notes: notes ?? this.notes,
+      reminder: reminder ?? this.reminder,
     );
   }
 
@@ -129,6 +133,7 @@ class TaskItem {
       'priority': priority,
       'location': location,
       'notes': notes,
+      'reminder': reminder,
     };
   }
 
@@ -149,6 +154,7 @@ class TaskItem {
       priority: json['priority'] as String?,
       location: json['location'] as String?,
       notes: json['notes'] as String?,
+      reminder: json['reminder'] as String?,
     );
   }
 }

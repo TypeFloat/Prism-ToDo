@@ -34,6 +34,14 @@ class AppStrings {
   static const postponeToTomorrow = '延期到明天';
   static const taskTypeSchedule = '日程型';
   static const taskTypeDeadline = '截止型';
+  static const reminderLabel = '提醒';
+  static const reminderNone = '不提醒';
+  static const reminderAtTime = '到时提醒';
+  static const reminderBefore5m = '提前 5 分钟';
+  static const reminderBefore15m = '提前 15 分钟';
+  static const reminderBefore30m = '提前 30 分钟';
+  static const reminderBefore1h = '提前 1 小时';
+  static const reminderBefore1d = '提前 1 天';
 
   static const settingsTitle = '设置';
   static const settingsSubtitle = 'Phase 2 先落本地配置与 OpenAI 兼容骨架，暂不要求真实联网。';

@@ -36,6 +36,16 @@ class WorkbenchPage extends StatefulWidget {
 }
 
 class _WorkbenchPageState extends State<WorkbenchPage> {
+  static const List<DropdownMenuItem<String>> _reminderItems = [
+    DropdownMenuItem(value: 'none', child: Text(AppStrings.reminderNone)),
+    DropdownMenuItem(value: 'at_time', child: Text(AppStrings.reminderAtTime)),
+    DropdownMenuItem(value: '5m', child: Text(AppStrings.reminderBefore5m)),
+    DropdownMenuItem(value: '15m', child: Text(AppStrings.reminderBefore15m)),
+    DropdownMenuItem(value: '30m', child: Text(AppStrings.reminderBefore30m)),
+    DropdownMenuItem(value: '1h', child: Text(AppStrings.reminderBefore1h)),
+    DropdownMenuItem(value: '1d', child: Text(AppStrings.reminderBefore1d)),
+  ];
+
   final TextEditingController _controller = TextEditingController();
   final TaskService _taskService = const TaskService();
 
@@ -337,6 +347,7 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
     String taskType = original.isScheduled
         ? 'schedule'
         : (original.isDeadlineOnly ? 'deadline' : 'todo');
+    String reminder = original.reminder ?? 'none';
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -385,6 +396,16 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                     ),
                   ],
                   const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    initialValue: reminder,
+                    decoration: const InputDecoration(labelText: AppStrings.reminderLabel),
+                    items: _reminderItems,
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setLocalState(() => reminder = value);
+                    },
+                  ),
+                  const SizedBox(height: 10),
                   TextField(
                     controller: notesController,
                     decoration: const InputDecoration(labelText: '备注'),
@@ -432,6 +453,7 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
             endAt: endAt.isEmpty ? null : endAt,
             deadline: null,
             notes: notes.isEmpty ? null : notes,
+            reminder: reminder,
           );
         }
 
@@ -444,6 +466,7 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
             endAt: null,
             deadline: deadline.isEmpty ? null : deadline,
             notes: notes.isEmpty ? null : notes,
+            reminder: reminder,
           );
         }
 
@@ -455,6 +478,7 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
           endAt: null,
           deadline: null,
           notes: notes.isEmpty ? null : notes,
+          reminder: reminder,
         );
       }).toList();
     });

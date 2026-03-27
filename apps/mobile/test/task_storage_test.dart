@@ -26,6 +26,7 @@ void main() {
         status: TaskStatus.done,
         captureState: TaskCaptureState.parsed,
         aiSummary: '已从收件箱移到今天，并标记完成。',
+        reminder: '15m',
       ),
       const TaskItem(
         id: 'persist-2',
@@ -43,6 +44,7 @@ void main() {
     expect(reloaded.first.bucket, TaskBucket.today);
     expect(reloaded.first.status, TaskStatus.done);
     expect(reloaded.first.captureState, TaskCaptureState.parsed);
+    expect(reloaded.first.reminder, '15m');
     expect(reloaded.last.title, '重启后恢复任务列表');
     expect(reloaded.last.bucket, TaskBucket.inbox);
 
