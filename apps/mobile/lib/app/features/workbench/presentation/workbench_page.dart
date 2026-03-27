@@ -396,15 +396,21 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                     ),
                   ],
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                    initialValue: reminder,
-                    decoration: const InputDecoration(labelText: AppStrings.reminderLabel),
-                    items: _reminderItems,
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setLocalState(() => reminder = value);
-                    },
-                  ),
+                  if (taskType == 'todo')
+                    Text(
+                      '普通待办默认不设置提醒，请先切换为日程型或截止型。',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    )
+                  else
+                    DropdownButtonFormField<String>(
+                      initialValue: reminder,
+                      decoration: const InputDecoration(labelText: AppStrings.reminderLabel),
+                      items: _reminderItems,
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setLocalState(() => reminder = value);
+                      },
+                    ),
                   const SizedBox(height: 10),
                   TextField(
                     controller: notesController,
@@ -478,7 +484,7 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
           endAt: null,
           deadline: null,
           notes: notes.isEmpty ? null : notes,
-          reminder: reminder,
+          reminder: 'none',
         );
       }).toList();
     });

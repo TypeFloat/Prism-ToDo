@@ -326,4 +326,30 @@ void main() {
 
     expect(find.text(AppStrings.sampleTaskReviewToday), findsNothing);
   });
+
+  testWidgets('deadline task shows urgency hint in list card', (tester) async {
+    final nearDeadline = DateTime.now().add(const Duration(hours: 2)).toIso8601String();
+    final storage = InMemoryTaskStorage([
+      TaskItem(
+        id: 'd-urgent',
+        title: '临期任务',
+        bucket: TaskBucket.today,
+        timeType: TaskTimeType.deadlineOnly,
+        deadline: nearDeadline,
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      AiTodoApp(
+        taskStorage: storage,
+        settingsStorage: InMemorySettingsStorage(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(AppStrings.today).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('24小时内到期'), findsOneWidget);
+  });
 }
