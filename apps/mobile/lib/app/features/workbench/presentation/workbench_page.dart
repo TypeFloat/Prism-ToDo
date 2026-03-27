@@ -355,15 +355,16 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
     Future<void> pickDateTime(TextEditingController controller, void Function(void Function()) setLocalState) async {
       final now = DateTime.now();
       final initial = DateTime.tryParse(controller.text.trim()) ?? now;
+      final pageContext = context;
       final date = await showDatePicker(
-        context: context,
+        context: pageContext,
         initialDate: initial,
         firstDate: DateTime(2020),
         lastDate: DateTime(2100),
       );
-      if (!mounted || date == null) return;
+      if (!pageContext.mounted || date == null) return;
       final time = await showTimePicker(
-        context: context,
+        context: pageContext,
         initialTime: TimeOfDay.fromDateTime(initial),
       );
       if (time == null) return;
