@@ -31,6 +31,7 @@ class AppStrings {
   static const confirmed = '已确认';
   static const confirmParse = '确认解析';
   static const moveToToday = '移到今天';
+  static const postponeToTomorrow = '延期到明天';
   static const taskTypeSchedule = '日程型';
   static const taskTypeDeadline = '截止型';
 

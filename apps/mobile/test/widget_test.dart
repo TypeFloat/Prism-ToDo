@@ -299,4 +299,31 @@ void main() {
     expect(find.text(newTaskTitle), findsOneWidget);
     expect(find.text(AppStrings.duplicateTaskSnackBar), findsOneWidget);
   });
+
+  testWidgets('today task can be postponed to tomorrow and moved back to inbox', (tester) async {
+    await tester.pumpWidget(
+      AiTodoApp(
+        taskStorage: InMemoryTaskStorage(),
+        settingsStorage: InMemorySettingsStorage(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(AppStrings.today).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text(AppStrings.sampleTaskReviewToday), findsOneWidget);
+    expect(find.text(AppStrings.postponeToTomorrow), findsOneWidget);
+
+    await tester.tap(find.text(AppStrings.postponeToTomorrow).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text(AppStrings.quickInputTitle), findsOneWidget);
+    expect(find.text(AppStrings.sampleTaskReviewToday), findsOneWidget);
+
+    await tester.tap(find.text(AppStrings.today).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text(AppStrings.sampleTaskReviewToday), findsNothing);
+  });
 }

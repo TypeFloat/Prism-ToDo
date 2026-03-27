@@ -15,6 +15,7 @@ class TaskListSection extends StatelessWidget {
     required this.emptyHint,
     required this.onConfirmParse,
     required this.onMoveToToday,
+    required this.onPostponeToTomorrow,
   });
 
   final String title;
@@ -26,6 +27,7 @@ class TaskListSection extends StatelessWidget {
   final String emptyHint;
   final ValueChanged<String> onConfirmParse;
   final ValueChanged<String> onMoveToToday;
+  final ValueChanged<String> onPostponeToTomorrow;
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +64,7 @@ class TaskListSection extends StatelessWidget {
                     onEdit: () => onEdit(task.id),
                     onConfirmParse: () => onConfirmParse(task.id),
                     onMoveToToday: task.bucket == TaskBucket.inbox && !task.isDone ? () => onMoveToToday(task.id) : null,
+                    onPostponeToTomorrow: task.bucket == TaskBucket.today && !task.isDone ? () => onPostponeToTomorrow(task.id) : null,
                   );
                 },
               ),
@@ -81,6 +84,7 @@ class _TaskCard extends StatelessWidget {
     required this.onEdit,
     required this.onConfirmParse,
     this.onMoveToToday,
+    this.onPostponeToTomorrow,
   });
 
   final TaskItem task;
@@ -90,6 +94,7 @@ class _TaskCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onConfirmParse;
   final VoidCallback? onMoveToToday;
+  final VoidCallback? onPostponeToTomorrow;
 
   @override
   Widget build(BuildContext context) {
@@ -211,6 +216,12 @@ class _TaskCard extends StatelessWidget {
                     onPressed: onMoveToToday,
                     icon: const Icon(Icons.arrow_forward_outlined),
                     label: const Text(AppStrings.moveToToday),
+                  ),
+                if (onPostponeToTomorrow != null)
+                  OutlinedButton.icon(
+                    onPressed: onPostponeToTomorrow,
+                    icon: const Icon(Icons.event_repeat_outlined),
+                    label: const Text(AppStrings.postponeToTomorrow),
                   ),
                 OutlinedButton.icon(
                   onPressed: onEdit,

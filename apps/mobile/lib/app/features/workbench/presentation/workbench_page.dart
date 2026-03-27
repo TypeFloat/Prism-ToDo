@@ -130,6 +130,7 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                                           onEdit: _handleEditTask,
                                           onConfirmParse: _handleConfirmParse,
                                           onMoveToToday: _handleMoveToToday,
+                                          onPostponeToTomorrow: _handlePostponeToTomorrow,
                                           emptyHint: _emptyHintForSelectedView(),
                                         ),
                                 ),
@@ -497,6 +498,32 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
       _selected = WorkbenchView.today;
     });
     _persistTasks();
+  }
+
+  void _handlePostponeToTomorrow(String taskId) {
+    setState(() {
+      _tasks = _tasks
+          .map((task) {
+            if (task.id != taskId) return task;
+            return task.copyWith(
+              bucket: TaskBucket.inbox,
+              startAt: _plusOneDayText(task.startAt),
+              endAt: _plusOneDayText(task.endAt),
+              deadline: _plusOneDayText(task.deadline),
+            );
+          })
+          .toList();
+      _selected = WorkbenchView.inbox;
+    });
+    _persistTasks();
+  }
+
+  String? _plusOneDayText(String? value) {
+    final raw = value?.trim();
+    if (raw == null || raw.isEmpty) return value;
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return value;
+    return parsed.add(const Duration(days: 1)).toIso8601String();
   }
 
   void _handleSettingsChanged(AISettings settings) {
