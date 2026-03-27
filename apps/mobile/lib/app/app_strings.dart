@@ -2,7 +2,7 @@ class AppStrings {
   const AppStrings._();
 
   static const appTitle = 'Prism ToDo';
-  static const appVersionLabel = 'v0.2.0';
+  static const appVersionLabel = 'v0.3.2';
 
   static const today = '今天';
   static const inbox = '收件箱';
@@ -11,7 +11,7 @@ class AppStrings {
   static const settings = '设置';
 
   static const workbenchTitle = 'Prism ToDo';
-  static const workbenchSubtitle = '收集、整理、完成任务；AI 能力在设置完成后可逐步启用。';
+  static const workbenchSubtitle = '管理任务与日程。';
 
   static const quickInputTitle = '快速记录';
   static const quickInputHint = '新任务默认先进入收件箱。';

@@ -14,7 +14,6 @@ class TaskListSection extends StatelessWidget {
     required this.onEdit,
     required this.emptyHint,
     required this.onConfirmParse,
-    required this.onMoveToToday,
     required this.onPostponeToTomorrow,
   });
 
@@ -26,7 +25,6 @@ class TaskListSection extends StatelessWidget {
   final ValueChanged<String> onEdit;
   final String emptyHint;
   final ValueChanged<String> onConfirmParse;
-  final ValueChanged<String> onMoveToToday;
   final ValueChanged<String> onPostponeToTomorrow;
 
   @override
@@ -63,7 +61,6 @@ class TaskListSection extends StatelessWidget {
                     onDelete: () => onDelete(task.id),
                     onEdit: () => onEdit(task.id),
                     onConfirmParse: () => onConfirmParse(task.id),
-                    onMoveToToday: task.bucket == TaskBucket.inbox && !task.isDone ? () => onMoveToToday(task.id) : null,
                     onPostponeToTomorrow: task.bucket == TaskBucket.today && !task.isDone ? () => onPostponeToTomorrow(task.id) : null,
                   );
                 },
@@ -83,7 +80,6 @@ class _TaskCard extends StatelessWidget {
     required this.onDelete,
     required this.onEdit,
     required this.onConfirmParse,
-    this.onMoveToToday,
     this.onPostponeToTomorrow,
   });
 
@@ -93,7 +89,6 @@ class _TaskCard extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onEdit;
   final VoidCallback onConfirmParse;
-  final VoidCallback? onMoveToToday;
   final VoidCallback? onPostponeToTomorrow;
 
   @override
@@ -108,9 +103,6 @@ class _TaskCard extends StatelessWidget {
     final notes = _nonEmpty(task.notes);
     final reminder = _reminderLabel(task.reminder);
     final deadlineState = _deadlineState(task.deadline);
-    final taskTypeLabel = task.isScheduled
-        ? AppStrings.taskTypeSchedule
-        : (task.isDeadlineOnly ? AppStrings.taskTypeDeadline : null);
     final openSubtasks = subtasks.where((task) => !task.isDone).length;
 
     return Card(
@@ -145,14 +137,7 @@ class _TaskCard extends StatelessWidget {
                             AppStrings.bucketLabel(task.bucket.name),
                             style: theme.textTheme.bodySmall,
                           ),
-                          if (taskTypeLabel != null)
-                            Text(
-                              taskTypeLabel,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+
                         ],
                       ),
                       if (subtasks.isNotEmpty) ...[
@@ -170,31 +155,35 @@ class _TaskCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(12)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(summary, style: theme.textTheme.bodyMedium),
-                  if (deadline != null || priority != null || location != null || notes != null || reminder != null || deadlineState != null) ...[
-                    const SizedBox(height: 10),
-                    if (deadline != null) Text('截止时间：$deadline', style: theme.textTheme.bodySmall),
-                    if (deadlineState != null)
-                      Text(
-                        deadlineState,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: deadlineState.startsWith('已逾期') ? theme.colorScheme.error : theme.colorScheme.tertiary,
-                          fontWeight: FontWeight.w600,
+            InkWell(
+              onTap: onEdit,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(12)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(summary, style: theme.textTheme.bodyMedium),
+                    if (deadline != null || priority != null || location != null || notes != null || reminder != null || deadlineState != null) ...[
+                      const SizedBox(height: 10),
+                      if (deadline != null) Text('日期/时间：$deadline', style: theme.textTheme.bodySmall),
+                      if (deadlineState != null)
+                        Text(
+                          deadlineState,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: deadlineState.startsWith('已逾期') ? theme.colorScheme.error : theme.colorScheme.tertiary,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                    if (reminder != null) Text('提醒：$reminder', style: theme.textTheme.bodySmall),
-                    if (priority != null) Text('优先级：$priority', style: theme.textTheme.bodySmall),
-                    if (location != null) Text('地点：$location', style: theme.textTheme.bodySmall),
-                    if (notes != null) Text('备注：$notes', style: theme.textTheme.bodySmall),
+                      if (reminder != null) Text('提醒：$reminder', style: theme.textTheme.bodySmall),
+                      if (priority != null) Text('优先级：$priority', style: theme.textTheme.bodySmall),
+                      if (location != null) Text('地点：$location', style: theme.textTheme.bodySmall),
+                      if (notes != null) Text('备注：$notes', style: theme.textTheme.bodySmall),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
             if (subtasks.isNotEmpty) ...[
@@ -222,23 +211,12 @@ class _TaskCard extends StatelessWidget {
                   icon: const Icon(Icons.auto_awesome_outlined),
                   label: Text(task.isParsed ? AppStrings.confirmed : AppStrings.confirmParse),
                 ),
-                if (onMoveToToday != null)
-                  FilledButton.tonalIcon(
-                    onPressed: onMoveToToday,
-                    icon: const Icon(Icons.arrow_forward_outlined),
-                    label: const Text(AppStrings.moveToToday),
-                  ),
                 if (onPostponeToTomorrow != null)
                   OutlinedButton.icon(
                     onPressed: onPostponeToTomorrow,
                     icon: const Icon(Icons.event_repeat_outlined),
                     label: const Text(AppStrings.postponeToTomorrow),
                   ),
-                OutlinedButton.icon(
-                  onPressed: onEdit,
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('编辑'),
-                ),
                 OutlinedButton.icon(
                   onPressed: onDelete,
                   icon: const Icon(Icons.delete_outline),

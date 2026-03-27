@@ -144,7 +144,6 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                                           onDelete: _handleDeleteTask,
                                           onEdit: _handleEditTask,
                                           onConfirmParse: _handleConfirmParse,
-                                          onMoveToToday: _handleMoveToToday,
                                           onPostponeToTomorrow: _handlePostponeToTomorrow,
                                           emptyHint: _emptyHintForSelectedView(),
                                         ),
@@ -190,10 +189,14 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
       case WorkbenchView.completed:
         return tasks.where((task) => task.isDone).toList();
       case WorkbenchView.calendar:
-        return tasks
-            .where((task) => !task.isDone)
-            .where((task) => (task.deadline?.trim().isNotEmpty ?? false) || (task.startAt?.trim().isNotEmpty ?? false) || (task.endAt?.trim().isNotEmpty ?? false))
-            .toList();
+        bool hasParsableTime(TaskItem task) {
+          final deadline = DateTime.tryParse(task.deadline?.trim() ?? '');
+          final startAt = DateTime.tryParse(task.startAt?.trim() ?? '');
+          final endAt = DateTime.tryParse(task.endAt?.trim() ?? '');
+          return deadline != null || startAt != null || endAt != null;
+        }
+
+        return tasks.where((task) => !task.isDone).where(hasParsableTime).toList();
       case WorkbenchView.settings:
         return const [];
       case WorkbenchView.inbox:
@@ -349,6 +352,25 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
         : (original.isDeadlineOnly ? 'deadline' : 'todo');
     String reminder = original.reminder ?? 'none';
 
+    Future<void> pickDateTime(TextEditingController controller, void Function(void Function()) setLocalState) async {
+      final now = DateTime.now();
+      final initial = DateTime.tryParse(controller.text.trim()) ?? now;
+      final date = await showDatePicker(
+        context: context,
+        initialDate: initial,
+        firstDate: DateTime(2020),
+        lastDate: DateTime(2100),
+      );
+      if (!mounted || date == null) return;
+      final time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(initial),
+      );
+      if (time == null) return;
+      final picked = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      setLocalState(() => controller.text = picked.toIso8601String());
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -382,17 +404,23 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                   if (taskType == 'schedule') ...[
                     TextField(
                       controller: startController,
-                      decoration: const InputDecoration(labelText: '开始时间（ISO 8601 或自定义文本）'),
+                      readOnly: true,
+                      onTap: () => pickDateTime(startController, setLocalState),
+                      decoration: const InputDecoration(labelText: '开始时间（点选）', suffixIcon: Icon(Icons.calendar_today_outlined)),
                     ),
                     const SizedBox(height: 10),
                     TextField(
                       controller: endController,
-                      decoration: const InputDecoration(labelText: '结束时间（可选）'),
+                      readOnly: true,
+                      onTap: () => pickDateTime(endController, setLocalState),
+                      decoration: const InputDecoration(labelText: '结束时间（点选，可选）', suffixIcon: Icon(Icons.calendar_today_outlined)),
                     ),
                   ] else if (taskType == 'deadline') ...[
                     TextField(
                       controller: dueController,
-                      decoration: const InputDecoration(labelText: '截止时间（due）'),
+                      readOnly: true,
+                      onTap: () => pickDateTime(dueController, setLocalState),
+                      decoration: const InputDecoration(labelText: '截止时间（点选）', suffixIcon: Icon(Icons.calendar_today_outlined)),
                     ),
                   ],
                   const SizedBox(height: 10),
@@ -520,17 +548,21 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
       if (!mounted) return;
       setState(() {
         _tasks = _tasks
-            .map((task) => task.id == taskId
-                ? task.copyWith(
-                    title: result.normalizedTitle,
-                    captureState: TaskCaptureState.parsed,
-                    aiSummary: result.summary,
-                    deadline: result.deadline,
-                    priority: result.priority,
-                    location: result.location,
-                    notes: result.notes,
-                  )
-                : task)
+            .map((task) {
+              if (task.id != taskId) return task;
+              final hasDeadline = (result.deadline?.trim().isNotEmpty ?? false);
+              return task.copyWith(
+                title: result.normalizedTitle,
+                captureState: TaskCaptureState.parsed,
+                aiSummary: result.summary,
+                deadline: result.deadline,
+                priority: result.priority,
+                location: result.location,
+                notes: result.notes,
+                bucket: hasDeadline ? TaskBucket.today : task.bucket,
+                timeType: hasDeadline ? TaskTimeType.deadlineOnly : task.timeType,
+              );
+            })
             .toList();
       });
       _persistTasks();
@@ -543,18 +575,6 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text('AI 解析失败：$error')));
     }
-  }
-
-  void _handleMoveToToday(String taskId) {
-    setState(() {
-      _tasks = _tasks
-          .map((task) => task.id == taskId
-              ? task.copyWith(bucket: TaskBucket.today, captureState: TaskCaptureState.parsed)
-              : task)
-          .toList();
-      _selected = WorkbenchView.today;
-    });
-    _persistTasks();
   }
 
   void _handlePostponeToTomorrow(String taskId) {
