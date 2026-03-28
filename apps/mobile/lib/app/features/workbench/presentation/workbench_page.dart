@@ -9,6 +9,7 @@ import '../../settings/domain/ai_settings.dart';
 import '../../ai/data/openai_compatible_client.dart';
 import '../../ai/domain/ai_request_error.dart';
 import '../domain/task_service.dart';
+import 'utils/date_time_display.dart';
 import 'widgets/calendar_section.dart';
 import 'widgets/quick_input_bar.dart';
 import 'widgets/settings_panel.dart';
@@ -111,7 +112,9 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                               children: [
                                 Text(
                                   AppStrings.workbenchTitle,
-                                  style: Theme.of(context).textTheme.headlineMedium,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.headlineMedium,
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
@@ -130,22 +133,42 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                                   child: _selected == WorkbenchView.calendar
                                       ? CalendarSection(
                                           tasks: _tasksForSelectedView(),
-                                          emptyHint: _emptyHintForSelectedView(),
+                                          emptyHint:
+                                              _emptyHintForSelectedView(),
                                           selectedDate: _calendarDate,
-                                          onToday: () => setState(() => _calendarDate = DateTime.now()),
-                                          onPreviousDay: () => setState(() => _calendarDate = _calendarDate.subtract(const Duration(days: 1))),
-                                          onNextDay: () => setState(() => _calendarDate = _calendarDate.add(const Duration(days: 1))),
+                                          onToday: () => setState(
+                                            () =>
+                                                _calendarDate = DateTime.now(),
+                                          ),
+                                          onPreviousDay: () => setState(
+                                            () => _calendarDate = _calendarDate
+                                                .subtract(
+                                                  const Duration(days: 1),
+                                                ),
+                                          ),
+                                          onNextDay: () => setState(
+                                            () => _calendarDate = _calendarDate
+                                                .add(const Duration(days: 1)),
+                                          ),
                                         )
                                       : TaskListSection(
-                                          title: _selected == WorkbenchView.today ? _todaySectionTitle() : AppStrings.bucketLabel(_selected.name),
+                                          title:
+                                              _selected == WorkbenchView.today
+                                              ? _todaySectionTitle()
+                                              : AppStrings.bucketLabel(
+                                                  _selected.name,
+                                                ),
                                           tasks: _tasksForSelectedView(),
                                           subtaskLookup: _buildSubtaskLookup(),
                                           onToggleDone: _handleToggleDone,
                                           onDelete: _handleDeleteTask,
                                           onEdit: _handleEditTask,
                                           onConfirmParse: _handleConfirmParse,
-                                          onPostponeToTomorrow: _handlePostponeToTomorrow,
-                                          emptyHint: _emptyHintForSelectedView(),
+                                          onPostponeToTomorrow:
+                                              _handlePostponeToTomorrow,
+                                          onEditInfoField: _handleEditInfoField,
+                                          emptyHint:
+                                              _emptyHintForSelectedView(),
                                         ),
                                 ),
                               ],
@@ -161,7 +184,10 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
   Future<void> _loadState() async {
     final tasks = await widget.taskStorage.loadTasks();
     final settings = await widget.settingsStorage.loadSettings();
-    final reconciledTasks = _taskService.reconcileAutoCompletion(tasks, DateTime.now());
+    final reconciledTasks = _taskService.reconcileAutoCompletion(
+      tasks,
+      DateTime.now(),
+    );
     if (!mounted) return;
     setState(() {
       _tasks = reconciledTasks;
@@ -175,7 +201,8 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
   }
 
   Future<void> _persistTasks() => widget.taskStorage.saveTasks(_tasks);
-  Future<void> _persistSettings() => widget.settingsStorage.saveSettings(_settings);
+  Future<void> _persistSettings() =>
+      widget.settingsStorage.saveSettings(_settings);
 
   List<TaskItem> _tasksForSelectedView() => _topLevelTasksFor(_selected);
 
@@ -183,7 +210,9 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
     final tasks = _tasks.where((task) => task.parentId == null);
     switch (view) {
       case WorkbenchView.today:
-        final todayTasks = tasks.where((task) => task.bucket == TaskBucket.today && !task.isDone).toList();
+        final todayTasks = tasks
+            .where((task) => task.bucket == TaskBucket.today && !task.isDone)
+            .toList();
         todayTasks.sort((a, b) => _todayRank(a).compareTo(_todayRank(b)));
         return todayTasks;
       case WorkbenchView.completed:
@@ -196,11 +225,16 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
           return deadline != null || startAt != null || endAt != null;
         }
 
-        return tasks.where((task) => !task.isDone).where(hasParsableTime).toList();
+        return tasks
+            .where((task) => !task.isDone)
+            .where(hasParsableTime)
+            .toList();
       case WorkbenchView.settings:
         return const [];
       case WorkbenchView.inbox:
-        return tasks.where((task) => task.bucket == TaskBucket.inbox && !task.isDone).toList();
+        return tasks
+            .where((task) => task.bucket == TaskBucket.inbox && !task.isDone)
+            .toList();
     }
   }
 
@@ -240,9 +274,16 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
   }
 
   String _todaySectionTitle() {
-    final tasks = _tasks.where((task) => task.parentId == null && task.bucket == TaskBucket.today && !task.isDone);
+    final tasks = _tasks.where(
+      (task) =>
+          task.parentId == null &&
+          task.bucket == TaskBucket.today &&
+          !task.isDone,
+    );
     final schedule = tasks.where((task) => task.isScheduled).length;
-    final deadline = tasks.where((task) => task.isDeadlineOnly && !_isOverdue(task)).length;
+    final deadline = tasks
+        .where((task) => task.isDeadlineOnly && !_isOverdue(task))
+        .length;
     final overdue = tasks.where((task) => _isOverdue(task)).length;
     return '${AppStrings.today}（日程 $schedule / 截止 $deadline / 逾期 $overdue）';
   }
@@ -265,14 +306,18 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
     if (title.isEmpty) return;
 
     final isDuplicate = hasDuplicateTaskTitle(
-      existingTitles: _tasks.where((task) => task.parentId == null).map((task) => task.title),
+      existingTitles: _tasks
+          .where((task) => task.parentId == null)
+          .map((task) => task.title),
       candidateTitle: title,
     );
 
     if (isDuplicate) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text(AppStrings.duplicateTaskSnackBar)));
+        ..showSnackBar(
+          const SnackBar(content: Text(AppStrings.duplicateTaskSnackBar)),
+        );
       return;
     }
 
@@ -295,7 +340,9 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
   Future<void> _handleToggleDone(String taskId) async {
     final target = _tasks.firstWhere((task) => task.id == taskId);
     if (!target.isDone) {
-      final openSubtasks = _tasks.where((task) => task.parentId == taskId && !task.isDone).toList();
+      final openSubtasks = _tasks
+          .where((task) => task.parentId == taskId && !task.isDone)
+          .toList();
       if (openSubtasks.isNotEmpty) {
         final confirmed = await showDialog<bool>(
           context: context,
@@ -303,21 +350,28 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
             title: const Text(AppStrings.completeWithSubtasksTitle),
             content: const Text(AppStrings.completeWithSubtasksMessage),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text(AppStrings.cancel)),
-              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text(AppStrings.confirmCompleteAll)),
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text(AppStrings.cancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text(AppStrings.confirmCompleteAll),
+              ),
             ],
           ),
         );
         if (confirmed != true) return;
         setState(() {
-          _tasks = _tasks
-              .map((task) {
-                if (task.id == taskId || task.parentId == taskId) {
-                  return task.copyWith(status: TaskStatus.done, doneAt: DateTime.now());
-                }
-                return task;
-              })
-              .toList();
+          _tasks = _tasks.map((task) {
+            if (task.id == taskId || task.parentId == taskId) {
+              return task.copyWith(
+                status: TaskStatus.done,
+                doneAt: DateTime.now(),
+              );
+            }
+            return task;
+          }).toList();
         });
         _persistTasks();
         return;
@@ -326,13 +380,15 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
 
     setState(() {
       _tasks = _tasks
-          .map((task) => task.id == taskId
-              ? task.copyWith(
-                  status: task.isDone ? TaskStatus.todo : TaskStatus.done,
-                  doneAt: task.isDone ? null : DateTime.now(),
-                  clearDoneAt: task.isDone,
-                )
-              : task)
+          .map(
+            (task) => task.id == taskId
+                ? task.copyWith(
+                    status: task.isDone ? TaskStatus.todo : TaskStatus.done,
+                    doneAt: task.isDone ? null : DateTime.now(),
+                    clearDoneAt: task.isDone,
+                  )
+                : task,
+          )
           .toList();
     });
     _persistTasks();
@@ -343,33 +399,49 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
 
     final titleController = TextEditingController(text: original.title);
     final notesController = TextEditingController(text: original.notes ?? '');
-    final startController = TextEditingController(text: original.startAt ?? '');
-    final endController = TextEditingController(text: original.endAt ?? '');
-    final dueController = TextEditingController(text: original.deadline ?? '');
+    DateTime? startValue = DateTimeDisplay.tryParse(original.startAt);
+    DateTime? endValue = DateTimeDisplay.tryParse(original.endAt);
+    DateTime? dueValue = DateTimeDisplay.tryParse(original.deadline);
 
     String taskType = original.isScheduled
         ? 'schedule'
         : (original.isDeadlineOnly ? 'deadline' : 'todo');
     String reminder = original.reminder ?? 'none';
 
-    Future<void> pickDateTime(TextEditingController controller, void Function(void Function()) setLocalState) async {
+    Future<DateTime?> pickDate(
+      BuildContext pageContext,
+      DateTime? current,
+    ) async {
       final now = DateTime.now();
-      final initial = DateTime.tryParse(controller.text.trim()) ?? now;
-      final pageContext = context;
+      final initial = current ?? now;
       final date = await showDatePicker(
         context: pageContext,
         initialDate: initial,
         firstDate: DateTime(2020),
         lastDate: DateTime(2100),
       );
-      if (!pageContext.mounted || date == null) return;
+      if (!pageContext.mounted || date == null) return null;
+      final timeBase = current ?? DateTime(now.year, now.month, now.day, 9);
+      return DateTime(
+        date.year,
+        date.month,
+        date.day,
+        timeBase.hour,
+        timeBase.minute,
+      );
+    }
+
+    Future<DateTime?> pickTime(
+      BuildContext pageContext,
+      DateTime? current,
+    ) async {
+      final base = current ?? DateTime.now();
       final time = await showTimePicker(
         context: pageContext,
-        initialTime: TimeOfDay.fromDateTime(initial),
+        initialTime: TimeOfDay.fromDateTime(base),
       );
-      if (time == null) return;
-      final picked = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-      setLocalState(() => controller.text = picked.toIso8601String());
+      if (time == null) return null;
+      return DateTime(base.year, base.month, base.day, time.hour, time.minute);
     }
 
     final confirmed = await showDialog<bool>(
@@ -403,25 +475,54 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                   ),
                   const SizedBox(height: 10),
                   if (taskType == 'schedule') ...[
-                    TextField(
-                      controller: startController,
-                      readOnly: true,
-                      onTap: () => pickDateTime(startController, setLocalState),
-                      decoration: const InputDecoration(labelText: '开始时间（点选）', suffixIcon: Icon(Icons.calendar_today_outlined)),
+                    _DateTimePickerTile(
+                      label: '开始',
+                      value: startValue,
+                      requiredField: true,
+                      onPickDate: () async {
+                        final picked = await pickDate(context, startValue);
+                        if (picked == null) return;
+                        setLocalState(() => startValue = picked);
+                      },
+                      onPickTime: () async {
+                        final picked = await pickTime(context, startValue);
+                        if (picked == null) return;
+                        setLocalState(() => startValue = picked);
+                      },
+                      onClear: () => setLocalState(() => startValue = null),
                     ),
                     const SizedBox(height: 10),
-                    TextField(
-                      controller: endController,
-                      readOnly: true,
-                      onTap: () => pickDateTime(endController, setLocalState),
-                      decoration: const InputDecoration(labelText: '结束时间（点选，可选）', suffixIcon: Icon(Icons.calendar_today_outlined)),
+                    _DateTimePickerTile(
+                      label: '结束',
+                      value: endValue,
+                      onPickDate: () async {
+                        final picked = await pickDate(context, endValue);
+                        if (picked == null) return;
+                        setLocalState(() => endValue = picked);
+                      },
+                      onPickTime: () async {
+                        final picked = await pickTime(context, endValue);
+                        if (picked == null) return;
+                        setLocalState(() => endValue = picked);
+                      },
+                      onClear: () => setLocalState(() => endValue = null),
                     ),
                   ] else if (taskType == 'deadline') ...[
-                    TextField(
-                      controller: dueController,
-                      readOnly: true,
-                      onTap: () => pickDateTime(dueController, setLocalState),
-                      decoration: const InputDecoration(labelText: '截止时间（点选）', suffixIcon: Icon(Icons.calendar_today_outlined)),
+                    _DateTimePickerTile(
+                      label: '截止',
+                      value: dueValue,
+                      requiredField: true,
+                      onPickDate: () async {
+                        final picked = await pickDate(context, dueValue);
+                        if (picked == null) return;
+                        setLocalState(() => dueValue = picked);
+                      },
+                      onPickTime: () async {
+                        final picked = await pickTime(context, dueValue);
+                        if (picked == null) return;
+                        setLocalState(() => dueValue = picked);
+                      },
+                      onClear: () => setLocalState(() => dueValue = null),
                     ),
                   ],
                   const SizedBox(height: 10),
@@ -433,7 +534,9 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
                   else
                     DropdownButtonFormField<String>(
                       initialValue: reminder,
-                      decoration: const InputDecoration(labelText: AppStrings.reminderLabel),
+                      decoration: const InputDecoration(
+                        labelText: AppStrings.reminderLabel,
+                      ),
                       items: _reminderItems,
                       onChanged: (value) {
                         if (value == null) return;
@@ -452,8 +555,14 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text(AppStrings.cancel)),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('保存')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text(AppStrings.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('保存'),
+            ),
           ],
         ),
       ),
@@ -464,14 +573,24 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
     final title = titleController.text.trim();
     if (title.isEmpty) return;
 
-    final startAt = startController.text.trim();
-    final endAt = endController.text.trim();
-    final deadline = dueController.text.trim();
+    final startAt = startValue?.toIso8601String() ?? '';
+    final endAt = endValue?.toIso8601String() ?? '';
+    final deadline = dueValue?.toIso8601String() ?? '';
     final notes = notesController.text.trim();
 
-    if (taskType == 'schedule' && startAt.isEmpty) {
+    if (taskType == 'schedule' && startValue == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('日程型任务必须填写开始时间')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('日程型任务必须填写开始时间')));
+      return;
+    }
+
+    if (taskType == 'deadline' && dueValue == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('截止型任务必须填写截止日期')));
       return;
     }
 
@@ -485,9 +604,9 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
             bucket: TaskBucket.today,
             timeType: TaskTimeType.schedule,
             startAt: startAt,
-            endAt: endAt.isEmpty ? null : endAt,
-            deadline: null,
-            notes: notes.isEmpty ? null : notes,
+            endAt: endAt.isEmpty ? '' : endAt,
+            deadline: '',
+            notes: notes.isEmpty ? '' : notes,
             reminder: reminder,
           );
         }
@@ -497,10 +616,10 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
             title: title,
             bucket: TaskBucket.today,
             timeType: TaskTimeType.deadlineOnly,
-            startAt: null,
-            endAt: null,
+            startAt: '',
+            endAt: '',
             deadline: deadline.isEmpty ? null : deadline,
-            notes: notes.isEmpty ? null : notes,
+            notes: notes.isEmpty ? '' : notes,
             reminder: reminder,
           );
         }
@@ -509,10 +628,10 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
           title: title,
           bucket: TaskBucket.inbox,
           timeType: TaskTimeType.none,
-          startAt: null,
-          endAt: null,
-          deadline: null,
-          notes: notes.isEmpty ? null : notes,
+          startAt: '',
+          endAt: '',
+          deadline: '',
+          notes: notes.isEmpty ? '' : notes,
           reminder: 'none',
         );
       }).toList();
@@ -528,15 +647,23 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
         title: const Text('删除任务'),
         content: const Text('确认删除该任务？其子任务也会一并删除。'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text(AppStrings.cancel)),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('删除')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(AppStrings.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('删除'),
+          ),
         ],
       ),
     );
     if (confirmed != true) return;
 
     setState(() {
-      _tasks = _tasks.where((task) => task.id != taskId && task.parentId != taskId).toList();
+      _tasks = _tasks
+          .where((task) => task.id != taskId && task.parentId != taskId)
+          .toList();
     });
     await _persistTasks();
   }
@@ -545,26 +672,27 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
     final messenger = ScaffoldMessenger.of(context);
     final target = _tasks.firstWhere((task) => task.id == taskId);
     try {
-      final result = await widget.aiClient.parseTask(rawText: target.title, settings: _settings);
+      final result = await widget.aiClient.parseTask(
+        rawText: target.title,
+        settings: _settings,
+      );
       if (!mounted) return;
       setState(() {
-        _tasks = _tasks
-            .map((task) {
-              if (task.id != taskId) return task;
-              final hasDeadline = (result.deadline?.trim().isNotEmpty ?? false);
-              return task.copyWith(
-                title: result.normalizedTitle,
-                captureState: TaskCaptureState.parsed,
-                aiSummary: result.summary,
-                deadline: result.deadline,
-                priority: result.priority,
-                location: result.location,
-                notes: result.notes,
-                bucket: hasDeadline ? TaskBucket.today : task.bucket,
-                timeType: hasDeadline ? TaskTimeType.deadlineOnly : task.timeType,
-              );
-            })
-            .toList();
+        _tasks = _tasks.map((task) {
+          if (task.id != taskId) return task;
+          final hasDeadline = (result.deadline?.trim().isNotEmpty ?? false);
+          return task.copyWith(
+            title: result.normalizedTitle,
+            captureState: TaskCaptureState.parsed,
+            aiSummary: result.summary,
+            deadline: result.deadline,
+            priority: result.priority,
+            location: result.location,
+            notes: result.notes,
+            bucket: hasDeadline ? TaskBucket.today : task.bucket,
+            timeType: hasDeadline ? TaskTimeType.deadlineOnly : task.timeType,
+          );
+        }).toList();
       });
       _persistTasks();
     } on AIRequestError catch (error) {
@@ -580,17 +708,15 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
 
   void _handlePostponeToTomorrow(String taskId) {
     setState(() {
-      _tasks = _tasks
-          .map((task) {
-            if (task.id != taskId) return task;
-            return task.copyWith(
-              bucket: TaskBucket.inbox,
-              startAt: _plusOneDayText(task.startAt),
-              endAt: _plusOneDayText(task.endAt),
-              deadline: _plusOneDayText(task.deadline),
-            );
-          })
-          .toList();
+      _tasks = _tasks.map((task) {
+        if (task.id != taskId) return task;
+        return task.copyWith(
+          bucket: TaskBucket.inbox,
+          startAt: _plusOneDayText(task.startAt),
+          endAt: _plusOneDayText(task.endAt),
+          deadline: _plusOneDayText(task.deadline),
+        );
+      }).toList();
       _selected = WorkbenchView.inbox;
     });
     _persistTasks();
@@ -602,6 +728,130 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
     final parsed = DateTime.tryParse(raw);
     if (parsed == null) return value;
     return parsed.add(const Duration(days: 1)).toIso8601String();
+  }
+
+  Future<void> _handleEditInfoField(String taskId, TaskInfoField field) async {
+    switch (field) {
+      case TaskInfoField.date:
+        return _editTaskDate(taskId);
+      case TaskInfoField.time:
+        return _editTaskTime(taskId);
+      case TaskInfoField.priority:
+        return _editTaskPriority(taskId);
+    }
+  }
+
+  Future<void> _editTaskDate(String taskId) async {
+    final task = _tasks.firstWhere((item) => item.id == taskId);
+    final current = _primaryDateTime(task) ?? DateTime.now();
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: current,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (!mounted || pickedDate == null) return;
+    final merged = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      current.hour,
+      current.minute,
+    );
+    await _applyPrimaryDateTime(taskId, merged);
+  }
+
+  Future<void> _editTaskTime(String taskId) async {
+    final task = _tasks.firstWhere((item) => item.id == taskId);
+    final current = _primaryDateTime(task) ?? DateTime.now();
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(current),
+    );
+    if (!mounted || pickedTime == null) return;
+    final merged = DateTime(
+      current.year,
+      current.month,
+      current.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+    await _applyPrimaryDateTime(taskId, merged);
+  }
+
+  Future<void> _editTaskPriority(String taskId) async {
+    final task = _tasks.firstWhere((item) => item.id == taskId);
+    final priorityController = TextEditingController(text: task.priority ?? '');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('编辑优先级'),
+        content: TextField(
+          controller: priorityController,
+          decoration: const InputDecoration(labelText: '优先级（如：高/中/低）'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(AppStrings.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final priority = priorityController.text.trim();
+    setState(() {
+      _tasks = _tasks
+          .map(
+            (item) => item.id == taskId
+                ? item.copyWith(priority: priority.isEmpty ? '' : priority)
+                : item,
+          )
+          .toList();
+    });
+    await _persistTasks();
+  }
+
+  DateTime? _primaryDateTime(TaskItem task) {
+    if (task.isScheduled) {
+      return DateTimeDisplay.tryParse(task.startAt) ??
+          DateTimeDisplay.tryParse(task.endAt);
+    }
+    if (task.isDeadlineOnly) {
+      return DateTimeDisplay.tryParse(task.deadline);
+    }
+    return DateTimeDisplay.tryParse(task.deadline) ??
+        DateTimeDisplay.tryParse(task.startAt) ??
+        DateTimeDisplay.tryParse(task.endAt);
+  }
+
+  Future<void> _applyPrimaryDateTime(String taskId, DateTime value) async {
+    final iso = value.toIso8601String();
+    setState(() {
+      _tasks = _tasks.map((item) {
+        if (item.id != taskId) return item;
+        if (item.isScheduled) {
+          return item.copyWith(
+            bucket: TaskBucket.today,
+            timeType: TaskTimeType.schedule,
+            startAt: iso,
+          );
+        }
+        return item.copyWith(
+          bucket: TaskBucket.today,
+          timeType: TaskTimeType.deadlineOnly,
+          deadline: iso,
+          startAt: '',
+          endAt: '',
+        );
+      }).toList();
+    });
+    await _persistTasks();
   }
 
   void _handleSettingsChanged(AISettings settings) {
@@ -637,5 +887,66 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(result.message)));
+  }
+}
+
+class _DateTimePickerTile extends StatelessWidget {
+  const _DateTimePickerTile({
+    required this.label,
+    required this.value,
+    required this.onPickDate,
+    required this.onPickTime,
+    required this.onClear,
+    this.requiredField = false,
+  });
+
+  final String label;
+  final DateTime? value;
+  final Future<void> Function() onPickDate;
+  final Future<void> Function() onPickTime;
+  final VoidCallback onClear;
+  final bool requiredField;
+
+  @override
+  Widget build(BuildContext context) {
+    final dateText = value == null ? '未设置' : DateTimeDisplay.formatDate(value!);
+    final timeText = value == null ? '--:--' : DateTimeDisplay.formatHm(value!);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: Theme.of(
+            context,
+          ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(requiredField ? '$label（必填）' : '$label（可选）'),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              FilledButton.tonalIcon(
+                onPressed: onPickDate,
+                icon: const Icon(Icons.calendar_today_outlined),
+                label: Text('日期 $dateText'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onPickTime,
+                icon: const Icon(Icons.schedule_outlined),
+                label: Text('时间 $timeText'),
+              ),
+              TextButton(onPressed: onClear, child: const Text('清空')),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app_strings.dart';
 import '../../../../models/task_item.dart';
+import '../utils/date_time_display.dart';
 
 class CalendarSection extends StatelessWidget {
   const CalendarSection({
@@ -26,27 +27,41 @@ class CalendarSection extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final scheduleTasks = tasks
-        .where((task) => task.isScheduled && _isSameDay(_parse(task.startAt) ?? _parse(task.endAt), selectedDate))
-        .toList()
-      ..sort((a, b) {
-        final aTime = _parse(a.startAt) ?? DateTime(2999);
-        final bTime = _parse(b.startAt) ?? DateTime(2999);
-        return aTime.compareTo(bTime);
-      });
+    final scheduleTasks =
+        tasks
+            .where(
+              (task) =>
+                  task.isScheduled &&
+                  _isSameDay(
+                    _parse(task.startAt) ?? _parse(task.endAt),
+                    selectedDate,
+                  ),
+            )
+            .toList()
+          ..sort((a, b) {
+            final aTime = _parse(a.startAt) ?? DateTime(2999);
+            final bTime = _parse(b.startAt) ?? DateTime(2999);
+            return aTime.compareTo(bTime);
+          });
 
     final deadlineTasks = tasks
-        .where((task) => task.isDeadlineOnly && _isSameDay(_parse(task.deadline), selectedDate))
+        .where(
+          (task) =>
+              task.isDeadlineOnly &&
+              _isSameDay(_parse(task.deadline), selectedDate),
+        )
         .toList();
 
     final overdueTasks = tasks.where((task) {
       if (!task.isDeadlineOnly) return false;
       final deadline = _parse(task.deadline);
       if (deadline == null) return false;
-      return deadline.isBefore(_dayStart(DateTime.now())) && !_isSameDay(deadline, selectedDate);
+      return deadline.isBefore(_dayStart(DateTime.now())) &&
+          !_isSameDay(deadline, selectedDate);
     }).toList();
 
-    final total = scheduleTasks.length + deadlineTasks.length + overdueTasks.length;
+    final total =
+        scheduleTasks.length + deadlineTasks.length + overdueTasks.length;
 
     return Container(
       width: double.infinity,
@@ -62,15 +77,30 @@ class CalendarSection extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              IconButton(onPressed: onPreviousDay, icon: const Icon(Icons.chevron_left)),
-              Text(_formatDay(selectedDate), style: theme.textTheme.titleMedium),
-              IconButton(onPressed: onNextDay, icon: const Icon(Icons.chevron_right)),
+              IconButton(
+                onPressed: onPreviousDay,
+                icon: const Icon(Icons.chevron_left),
+              ),
+              Text(
+                _formatDay(selectedDate),
+                style: theme.textTheme.titleMedium,
+              ),
+              IconButton(
+                onPressed: onNextDay,
+                icon: const Icon(Icons.chevron_right),
+              ),
               const Spacer(),
-              OutlinedButton(onPressed: onToday, child: const Text(AppStrings.today)),
+              OutlinedButton(
+                onPressed: onToday,
+                child: const Text(AppStrings.today),
+              ),
             ],
           ),
           const SizedBox(height: 8),
-          Text('当日视图：日程 ${scheduleTasks.length} / 截止 ${deadlineTasks.length} / 逾期 ${overdueTasks.length}', style: theme.textTheme.bodySmall),
+          Text(
+            '当日视图：日程 ${scheduleTasks.length} / 截止 ${deadlineTasks.length} / 逾期 ${overdueTasks.length}',
+            style: theme.textTheme.bodySmall,
+          ),
           const SizedBox(height: 16),
           if (total == 0)
             Container(
@@ -89,28 +119,43 @@ class CalendarSection extends StatelessWidget {
                   if (scheduleTasks.isNotEmpty) ...[
                     const _SectionTitle(title: '今日日程（时间线）'),
                     const SizedBox(height: 8),
-                    ...scheduleTasks.map((task) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _CalendarTaskCard(task: task, primaryLabel: _timelineLabel(task)),
-                        )),
+                    ...scheduleTasks.map(
+                      (task) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _CalendarTaskCard(
+                          task: task,
+                          primaryLabel: _timelineLabel(task),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 8),
                   ],
                   if (deadlineTasks.isNotEmpty) ...[
                     const _SectionTitle(title: '今日截止'),
                     const SizedBox(height: 8),
-                    ...deadlineTasks.map((task) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _CalendarTaskCard(task: task, primaryLabel: '截止 ${task.deadline ?? '-'}'),
-                        )),
+                    ...deadlineTasks.map(
+                      (task) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _CalendarTaskCard(
+                          task: task,
+                          primaryLabel: _deadlineLabel('截止', task.deadline),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 8),
                   ],
                   if (overdueTasks.isNotEmpty) ...[
                     const _SectionTitle(title: '逾期待处理'),
                     const SizedBox(height: 8),
-                    ...overdueTasks.map((task) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _CalendarTaskCard(task: task, primaryLabel: '逾期 ${task.deadline ?? '-'}'),
-                        )),
+                    ...overdueTasks.map(
+                      (task) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _CalendarTaskCard(
+                          task: task,
+                          primaryLabel: _deadlineLabel('逾期', task.deadline),
+                        ),
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -121,17 +166,31 @@ class CalendarSection extends StatelessWidget {
   }
 
   static String _timelineLabel(TaskItem task) {
-    final start = task.startAt?.trim();
-    final end = task.endAt?.trim();
-    if ((start ?? '').isEmpty && (end ?? '').isEmpty) return '未填写时间';
-    if ((end ?? '').isEmpty) return '开始 $start';
-    return '$start → $end';
+    final start = _parse(task.startAt);
+    final end = _parse(task.endAt);
+    if (start == null && end == null) return '未填写时间';
+    if (start != null && end == null) {
+      return '时间 ${DateTimeDisplay.formatHm(start)}';
+    }
+    if (start == null && end != null) {
+      return '时间 ${DateTimeDisplay.formatHm(end)}';
+    }
+    return '时间 ${DateTimeDisplay.formatHm(start!)} → ${DateTimeDisplay.formatHm(end!)}';
+  }
+
+  static String _deadlineLabel(String prefix, String? raw) {
+    final parsed = _parse(raw);
+    if (parsed == null) {
+      final fallback = raw?.trim();
+      return fallback == null || fallback.isEmpty
+          ? '$prefix -'
+          : '$prefix $fallback';
+    }
+    return '$prefix ${DateTimeDisplay.formatDate(parsed)} ${DateTimeDisplay.formatHm(parsed)}';
   }
 
   static DateTime? _parse(String? value) {
-    final raw = value?.trim() ?? '';
-    if (raw.isEmpty) return null;
-    return DateTime.tryParse(raw);
+    return DateTimeDisplay.tryParse(value);
   }
 
   static bool _isSameDay(DateTime? a, DateTime b) {
@@ -141,7 +200,8 @@ class CalendarSection extends StatelessWidget {
 
   static DateTime _dayStart(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
 
-  static String _formatDay(DateTime date) => '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  static String _formatDay(DateTime date) =>
+      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 }
 
 class _SectionTitle extends StatelessWidget {
@@ -178,7 +238,9 @@ class _CalendarTaskCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.4)),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

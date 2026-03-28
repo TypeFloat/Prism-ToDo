@@ -115,6 +115,13 @@ flutter run -d macos
 apps/mobile/dist/Prism-ToDo-macos.dmg
 ```
 
+可通过脚本生成（会自动包含 `Applications` 快捷方式，支持拖拽安装）：
+
+```bash
+cd apps/mobile
+tool/package_dmg.sh "build/macos/Build/Products/Release/Prism ToDo.app" "dist/Prism-ToDo-macos.dmg"
+```
+
 安装步骤：
 1. 双击打开 dmg
 2. 将 `Prism ToDo.app` 拖到 `Applications`

@@ -31,9 +31,9 @@ void main() {
 
   test('prefers in-app values over environment variables', () {
     AISettings.environmentReader = () => {
-          AISettings.envBaseUrlKey: 'https://env.example.com',
-          AISettings.envApiKeyKey: 'env-token',
-        };
+      AISettings.envBaseUrlKey: 'https://env.example.com',
+      AISettings.envApiKeyKey: 'env-token',
+    };
 
     const settings = AISettings(
       enabled: true,
@@ -49,9 +49,9 @@ void main() {
 
   test('falls back to environment variables when in-app values are empty', () {
     AISettings.environmentReader = () => {
-          AISettings.envBaseUrlKey: 'https://env.example.com',
-          AISettings.envApiKeyKey: 'env-token',
-        };
+      AISettings.envBaseUrlKey: 'https://env.example.com',
+      AISettings.envApiKeyKey: 'env-token',
+    };
 
     const settings = AISettings(
       enabled: true,
@@ -67,20 +67,23 @@ void main() {
     expect(settings.usingEnvApiKey, isTrue);
   });
 
-  test('returns validation error when api key missing in advanced mode', () async {
-    const client = OpenAICompatibleClient();
-    const settings = AISettings(
-      enabled: true,
-      advancedMode: true,
-      baseUrl: 'https://api.openai.com',
-      apiKey: '',
-      model: 'gpt-4o-mini',
-    );
+  test(
+    'returns validation error when api key missing in advanced mode',
+    () async {
+      const client = OpenAICompatibleClient();
+      const settings = AISettings(
+        enabled: true,
+        advancedMode: true,
+        baseUrl: 'https://api.openai.com',
+        apiKey: '',
+        model: 'gpt-4o-mini',
+      );
 
-    final result = await client.testConnection(settings: settings);
-    expect(result.success, isFalse);
-    expect(result.message, contains('API Key'));
-  });
+      final result = await client.testConnection(settings: settings);
+      expect(result.success, isFalse);
+      expect(result.message, contains('API Key'));
+    },
+  );
 
   test('testConnection parses successful response', () async {
     final mock = MockClient((request) async {
@@ -93,9 +96,9 @@ void main() {
         jsonEncode({
           'choices': [
             {
-              'message': {'content': 'ok'}
-            }
-          ]
+              'message': {'content': 'ok'},
+            },
+          ],
         }),
         200,
       );
@@ -131,27 +134,30 @@ void main() {
     expect(result.message, anyOf(contains('DNS'), contains('无法解析域名')));
   });
 
-  test('get preflight 404 should not block; final POST 404 returns incompatible hint', () async {
-    final mock = MockClient((request) async {
-      if (request.method == 'GET') {
+  test(
+    'get preflight 404 should not block; final POST 404 returns incompatible hint',
+    () async {
+      final mock = MockClient((request) async {
+        if (request.method == 'GET') {
+          return http.Response('404 page not found', 404);
+        }
         return http.Response('404 page not found', 404);
-      }
-      return http.Response('404 page not found', 404);
-    });
+      });
 
-    final client = OpenAICompatibleClient(httpClient: mock);
-    const settings = AISettings(
-      enabled: true,
-      advancedMode: true,
-      baseUrl: 'https://example.com/v1',
-      apiKey: 'token',
-      model: 'gpt-4o-mini',
-    );
+      final client = OpenAICompatibleClient(httpClient: mock);
+      const settings = AISettings(
+        enabled: true,
+        advancedMode: true,
+        baseUrl: 'https://example.com/v1',
+        apiKey: 'token',
+        model: 'gpt-4o-mini',
+      );
 
-    final result = await client.testConnection(settings: settings);
-    expect(result.success, isFalse);
-    expect(result.message, contains('URL 不兼容'));
-  });
+      final result = await client.testConnection(settings: settings);
+      expect(result.success, isFalse);
+      expect(result.message, contains('URL 不兼容'));
+    },
+  );
 
   test('parseTask extracts structured fields from JSON content', () async {
     final mock = MockClient((request) async {
@@ -159,21 +165,23 @@ void main() {
         return http.Response('ok', 200);
       }
       return http.Response.bytes(
-        utf8.encode(jsonEncode({
-          'choices': [
-            {
-              'message': {
-                'content': jsonEncode({
-                  'title': '发送项目周报给 Alice',
-                  'deadline': '明天下午3点前',
-                  'priority': '高',
-                  'location': '公司',
-                  'notes': '需要附上燃尽图'
-                })
-              }
-            }
-          ]
-        })),
+        utf8.encode(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {
+                  'content': jsonEncode({
+                    'title': '发送项目周报给 Alice',
+                    'deadline': '明天下午3点前',
+                    'priority': '高',
+                    'location': '公司',
+                    'notes': '需要附上燃尽图',
+                  }),
+                },
+              },
+            ],
+          }),
+        ),
         200,
         headers: {'content-type': 'application/json; charset=utf-8'},
       );
@@ -199,4 +207,57 @@ void main() {
     expect(result.location, '公司');
     expect(result.notes, '需要附上燃尽图');
   });
+
+  test(
+    'parseTask falls back to /responses when /chat/completions returns 405',
+    () async {
+      final requestedPaths = <String>[];
+      final mock = MockClient((request) async {
+        requestedPaths.add(request.url.path);
+        if (request.method == 'POST' &&
+            request.url.path.endsWith('/chat/completions')) {
+          return http.Response('method not allowed', 405);
+        }
+        if (request.method == 'POST' &&
+            request.url.path.endsWith('/responses')) {
+          return http.Response.bytes(
+            utf8.encode(
+              jsonEncode({
+                'output_text': jsonEncode({
+                  'title': '准备周会材料',
+                  'deadline': '2026-03-30T09:30:00+08:00',
+                  'priority': '中',
+                  'location': '会议室',
+                  'notes': '带上上周行动项',
+                }),
+              }),
+            ),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          );
+        }
+        return http.Response('not found', 404);
+      });
+
+      final client = OpenAICompatibleClient(httpClient: mock);
+      const settings = AISettings(
+        enabled: true,
+        advancedMode: true,
+        baseUrl: 'https://example.com/v1',
+        apiKey: 'token',
+        model: 'gpt-4o-mini',
+      );
+
+      final result = await client.parseTask(
+        rawText: '下周一晨会前准备周会材料。',
+        settings: settings,
+      );
+
+      expect(result.normalizedTitle, '准备周会材料');
+      expect(result.deadline, '2026-03-30T09:30:00+08:00');
+      expect(result.priority, '中');
+      expect(requestedPaths, contains('/v1/chat/completions'));
+      expect(requestedPaths, contains('/v1/responses'));
+    },
+  );
 }

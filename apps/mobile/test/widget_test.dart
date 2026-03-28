@@ -6,13 +6,14 @@ import 'package:ai_todo_mobile/app/features/settings/data/settings_storage.dart'
 import 'package:ai_todo_mobile/app/features/settings/domain/ai_settings.dart';
 import 'package:ai_todo_mobile/app/logic/task_dedup.dart';
 import 'package:ai_todo_mobile/app/models/task_item.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class InMemoryTaskStorage extends TaskStorage {
   InMemoryTaskStorage([List<TaskItem>? initialTasks])
-      : _tasks = List<TaskItem>.from(initialTasks ?? seedTasks),
-        super(baseDirectory: null);
+    : _tasks = List<TaskItem>.from(initialTasks ?? seedTasks),
+      super(baseDirectory: null);
 
   List<TaskItem> _tasks;
 
@@ -26,7 +27,8 @@ class InMemoryTaskStorage extends TaskStorage {
 }
 
 class InMemorySettingsStorage extends SettingsStorage {
-  InMemorySettingsStorage([this._settings = const AISettings()]) : super(baseDirectory: null);
+  InMemorySettingsStorage([this._settings = const AISettings()])
+    : super(baseDirectory: null);
 
   AISettings _settings;
 
@@ -75,7 +77,9 @@ void main() {
     expect(find.text(AppStrings.settings), findsOneWidget);
   });
 
-  testWidgets('completed tasks are hidden from inbox and today', (tester) async {
+  testWidgets('completed tasks are hidden from inbox and today', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       AiTodoApp(
         taskStorage: InMemoryTaskStorage(),
@@ -106,7 +110,9 @@ void main() {
     expect(find.text(AppStrings.aiFeatureToggle), findsOneWidget);
   });
 
-  testWidgets('parent task completion asks for subtask confirmation', (tester) async {
+  testWidgets('parent task completion asks for subtask confirmation', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       AiTodoApp(
         taskStorage: InMemoryTaskStorage(),
@@ -124,7 +130,9 @@ void main() {
     expect(find.text(AppStrings.confirmCompleteAll), findsOneWidget);
   });
 
-  testWidgets('cancel parent completion keeps parent and subtasks unchanged', (tester) async {
+  testWidgets('cancel parent completion keeps parent and subtasks unchanged', (
+    tester,
+  ) async {
     final storage = InMemoryTaskStorage();
     await tester.pumpWidget(
       AiTodoApp(
@@ -150,83 +158,95 @@ void main() {
     expect(sub2.isDone, isFalse);
   });
 
-  testWidgets('confirm parent completion marks parent and subtasks done and persists after restart', (tester) async {
-    final storage = InMemoryTaskStorage();
-    final settings = InMemorySettingsStorage();
+  testWidgets(
+    'confirm parent completion marks parent and subtasks done and persists after restart',
+    (tester) async {
+      final storage = InMemoryTaskStorage();
+      final settings = InMemorySettingsStorage();
 
-    await tester.pumpWidget(AiTodoApp(taskStorage: storage, settingsStorage: settings));
-    await tester.pump();
+      await tester.pumpWidget(
+        AiTodoApp(taskStorage: storage, settingsStorage: settings),
+      );
+      await tester.pump();
 
-    final checkbox = find.byType(Checkbox).at(0);
-    await tester.tap(checkbox);
-    await tester.pump();
-    await tester.tap(find.text(AppStrings.confirmCompleteAll));
-    await tester.pumpAndSettle();
+      final checkbox = find.byType(Checkbox).at(0);
+      await tester.tap(checkbox);
+      await tester.pump();
+      await tester.tap(find.text(AppStrings.confirmCompleteAll));
+      await tester.pumpAndSettle();
 
-    var reloaded = await storage.loadTasks();
-    var parent = reloaded.firstWhere((t) => t.id == 't2');
-    var sub1 = reloaded.firstWhere((t) => t.id == 't2-1');
-    var sub2 = reloaded.firstWhere((t) => t.id == 't2-2');
+      var reloaded = await storage.loadTasks();
+      var parent = reloaded.firstWhere((t) => t.id == 't2');
+      var sub1 = reloaded.firstWhere((t) => t.id == 't2-1');
+      var sub2 = reloaded.firstWhere((t) => t.id == 't2-2');
 
-    expect(parent.isDone, isTrue);
-    expect(sub1.isDone, isTrue);
-    expect(sub2.isDone, isTrue);
+      expect(parent.isDone, isTrue);
+      expect(sub1.isDone, isTrue);
+      expect(sub2.isDone, isTrue);
 
-    // restart simulation
-    await tester.pumpWidget(Container());
-    await tester.pump();
-    await tester.pumpWidget(AiTodoApp(taskStorage: storage, settingsStorage: settings));
-    await tester.pump();
+      // restart simulation
+      await tester.pumpWidget(Container());
+      await tester.pump();
+      await tester.pumpWidget(
+        AiTodoApp(taskStorage: storage, settingsStorage: settings),
+      );
+      await tester.pump();
 
-    reloaded = await storage.loadTasks();
-    parent = reloaded.firstWhere((t) => t.id == 't2');
-    sub1 = reloaded.firstWhere((t) => t.id == 't2-1');
-    sub2 = reloaded.firstWhere((t) => t.id == 't2-2');
+      reloaded = await storage.loadTasks();
+      parent = reloaded.firstWhere((t) => t.id == 't2');
+      sub1 = reloaded.firstWhere((t) => t.id == 't2-1');
+      sub2 = reloaded.firstWhere((t) => t.id == 't2-2');
 
-    expect(parent.isDone, isTrue);
-    expect(sub1.isDone, isTrue);
-    expect(sub2.isDone, isTrue);
-  });
+      expect(parent.isDone, isTrue);
+      expect(sub1.isDone, isTrue);
+      expect(sub2.isDone, isTrue);
+    },
+  );
 
-  testWidgets('today view keeps scheduled and deadline tasks together for execution', (tester) async {
-    final storage = InMemoryTaskStorage([
-      const TaskItem(
-        id: 's1',
-        title: '有开始结束时间的日程',
-        bucket: TaskBucket.today,
-        timeType: TaskTimeType.schedule,
-        startAt: '2099-03-25T10:00:00+08:00',
-        endAt: '2099-03-25T11:00:00+08:00',
-      ),
-      const TaskItem(
-        id: 'd1',
-        title: '只有截止时间的任务',
-        bucket: TaskBucket.today,
-        timeType: TaskTimeType.deadlineOnly,
-        deadline: '2099-03-25T18:00:00+08:00',
-      ),
-    ]);
+  testWidgets(
+    'today view keeps scheduled and deadline tasks together for execution',
+    (tester) async {
+      final storage = InMemoryTaskStorage([
+        const TaskItem(
+          id: 's1',
+          title: '有开始结束时间的日程',
+          bucket: TaskBucket.today,
+          timeType: TaskTimeType.schedule,
+          startAt: '2099-03-25T10:00:00+08:00',
+          endAt: '2099-03-25T11:00:00+08:00',
+        ),
+        const TaskItem(
+          id: 'd1',
+          title: '只有截止时间的任务',
+          bucket: TaskBucket.today,
+          timeType: TaskTimeType.deadlineOnly,
+          deadline: '2099-03-25T18:00:00+08:00',
+        ),
+      ]);
 
-    await tester.pumpWidget(
-      AiTodoApp(
-        taskStorage: storage,
-        settingsStorage: InMemorySettingsStorage(),
-      ),
-    );
-    await tester.pump();
+      await tester.pumpWidget(
+        AiTodoApp(
+          taskStorage: storage,
+          settingsStorage: InMemorySettingsStorage(),
+        ),
+      );
+      await tester.pump();
 
-    await tester.tap(find.text(AppStrings.today).first);
-    await tester.pump();
+      await tester.tap(find.text(AppStrings.today).first);
+      await tester.pump();
 
-    expect(find.text('有开始结束时间的日程'), findsOneWidget);
-    expect(find.text('只有截止时间的任务'), findsOneWidget);
-  });
+      expect(find.text('有开始结束时间的日程'), findsOneWidget);
+      expect(find.text('只有截止时间的任务'), findsOneWidget);
+    },
+  );
 
   testWidgets('theme mode follows saved settings on app start', (tester) async {
     await tester.pumpWidget(
       AiTodoApp(
         taskStorage: InMemoryTaskStorage(),
-        settingsStorage: InMemorySettingsStorage(const AISettings(themeMode: 'dark')),
+        settingsStorage: InMemorySettingsStorage(
+          const AISettings(themeMode: 'dark'),
+        ),
       ),
     );
     await tester.pump();
@@ -239,10 +259,7 @@ void main() {
     final settings = InMemorySettingsStorage();
 
     await tester.pumpWidget(
-      AiTodoApp(
-        taskStorage: InMemoryTaskStorage(),
-        settingsStorage: settings,
-      ),
+      AiTodoApp(taskStorage: InMemoryTaskStorage(), settingsStorage: settings),
     );
     await tester.pumpAndSettle();
 
@@ -261,10 +278,7 @@ void main() {
     expect(saved.themeMode, 'dark');
 
     await tester.pumpWidget(
-      AiTodoApp(
-        taskStorage: InMemoryTaskStorage(),
-        settingsStorage: settings,
-      ),
+      AiTodoApp(taskStorage: InMemoryTaskStorage(), settingsStorage: settings),
     );
     await tester.pumpAndSettle();
 
@@ -300,35 +314,51 @@ void main() {
     expect(find.text(AppStrings.duplicateTaskSnackBar), findsOneWidget);
   });
 
-  testWidgets('today task can be postponed to tomorrow and moved back to inbox', (tester) async {
-    await tester.pumpWidget(
-      AiTodoApp(
-        taskStorage: InMemoryTaskStorage(),
-        settingsStorage: InMemorySettingsStorage(),
-      ),
-    );
-    await tester.pumpAndSettle();
+  testWidgets(
+    'today task can be postponed to tomorrow and moved back to inbox',
+    (tester) async {
+      await tester.pumpWidget(
+        AiTodoApp(
+          taskStorage: InMemoryTaskStorage(),
+          settingsStorage: InMemorySettingsStorage(),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text(AppStrings.today).first);
-    await tester.pumpAndSettle();
+      await tester.tap(find.text(AppStrings.today).first);
+      await tester.pumpAndSettle();
 
-    expect(find.text(AppStrings.sampleTaskReviewToday), findsOneWidget);
-    expect(find.text(AppStrings.postponeToTomorrow), findsOneWidget);
+      expect(find.text(AppStrings.sampleTaskReviewToday), findsOneWidget);
+      expect(find.text(AppStrings.postponeToTomorrow), findsNothing);
 
-    await tester.tap(find.text(AppStrings.postponeToTomorrow).first);
-    await tester.pumpAndSettle();
+      final cardCenter = tester.getCenter(
+        find.text(AppStrings.sampleTaskReviewToday),
+      );
+      final rightClick = await tester.startGesture(
+        cardCenter,
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await rightClick.up();
+      await tester.pumpAndSettle();
 
-    expect(find.text(AppStrings.quickInputTitle), findsOneWidget);
-    expect(find.text(AppStrings.sampleTaskReviewToday), findsOneWidget);
+      await tester.tap(find.text(AppStrings.postponeToTomorrow).last);
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text(AppStrings.today).first);
-    await tester.pumpAndSettle();
+      expect(find.text(AppStrings.quickInputTitle), findsOneWidget);
+      expect(find.text(AppStrings.sampleTaskReviewToday), findsOneWidget);
 
-    expect(find.text(AppStrings.sampleTaskReviewToday), findsNothing);
-  });
+      await tester.tap(find.text(AppStrings.today).first);
+      await tester.pumpAndSettle();
+
+      expect(find.text(AppStrings.sampleTaskReviewToday), findsNothing);
+    },
+  );
 
   testWidgets('deadline task shows urgency hint in list card', (tester) async {
-    final nearDeadline = DateTime.now().add(const Duration(hours: 2)).toIso8601String();
+    final nearDeadline = DateTime.now()
+        .add(const Duration(hours: 2))
+        .toIso8601String();
     final storage = InMemoryTaskStorage([
       TaskItem(
         id: 'd-urgent',
