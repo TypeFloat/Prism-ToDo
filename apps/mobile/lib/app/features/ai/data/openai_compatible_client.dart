@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import 'embedded_shared_todo_prompt.dart';
 import '../../settings/domain/ai_settings.dart';
 import '../domain/ai_client.dart';
 import '../domain/ai_connection_result.dart';
@@ -65,11 +66,6 @@ class OpenAICompatibleClient implements AIClient {
 
   static const String _healthCheckPrompt =
       'You are a connectivity test assistant. Reply with a short "ok".';
-  static const List<String> _sharedPromptCandidates = [
-    'shared/prompts/todo.md',
-    '../shared/prompts/todo.md',
-    '../../shared/prompts/todo.md',
-  ];
 
   http.Client get _client => _httpClient ?? http.Client();
 
@@ -621,22 +617,16 @@ class OpenAICompatibleClient implements AIClient {
       final loaded = await _promptLoader.call();
       final prompt = loaded.trim();
       if (prompt.isEmpty) {
-        throw const AIRequestError('共享提示词为空：shared/prompts/todo.md。');
+        throw const AIRequestError('共享提示词为空，请检查 promptLoader 返回值。');
       }
       return prompt;
     }
 
-    for (final path in _sharedPromptCandidates) {
-      final file = File(path);
-      if (!await file.exists()) continue;
-      final content = await file.readAsString();
-      final prompt = content.trim();
-      if (prompt.isNotEmpty) return prompt;
+    final prompt = embeddedSharedTodoPrompt.trim();
+    if (prompt.isEmpty) {
+      throw const AIRequestError('内置共享提示词为空，请检查 embedded prompt 常量。');
     }
-
-    throw const AIRequestError(
-      '未找到共享提示词 shared/prompts/todo.md，请先同步该文件。',
-    );
+    return prompt;
   }
 
   List<_PromptTodoNode> _validateTodoNodeList(

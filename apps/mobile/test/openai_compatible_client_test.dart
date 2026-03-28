@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:ai_todo_mobile/app/features/ai/data/embedded_shared_todo_prompt.dart';
 import 'package:ai_todo_mobile/app/features/ai/data/openai_compatible_client.dart';
 import 'package:ai_todo_mobile/app/features/ai/domain/ai_request_error.dart';
 import 'package:ai_todo_mobile/app/features/settings/domain/ai_settings.dart';
@@ -14,6 +16,27 @@ void main() {
 
   tearDown(() {
     AISettings.environmentReader = () => const {};
+  });
+
+  test('embedded shared prompt stays synced with shared/prompts/todo.md', () {
+    const candidates = [
+      'shared/prompts/todo.md',
+      '../shared/prompts/todo.md',
+      '../../shared/prompts/todo.md',
+    ];
+
+    File? source;
+    for (final path in candidates) {
+      final file = File(path);
+      if (file.existsSync()) {
+        source = file;
+        break;
+      }
+    }
+
+    expect(source, isNotNull, reason: '未找到 shared/prompts/todo.md');
+    final fileContent = source!.readAsStringSync().trim();
+    expect(embeddedSharedTodoPrompt.trim(), fileContent);
   });
 
   test('builds OpenAI compatible url from base /v1 root', () {
