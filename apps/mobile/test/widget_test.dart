@@ -314,6 +314,36 @@ void main() {
     expect(find.text(AppStrings.duplicateTaskSnackBar), findsOneWidget);
   });
 
+  testWidgets('inbox hides AI meta and uses right-click menu actions', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      AiTodoApp(
+        taskStorage: InMemoryTaskStorage(),
+        settingsStorage: InMemorySettingsStorage(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(AppStrings.sampleTaskMeetingFollowupsSummary), findsNothing);
+
+    final cardCenter = tester.getCenter(
+      find.text(AppStrings.sampleTaskMeetingFollowups),
+    );
+    final rightClick = await tester.startGesture(
+      cardCenter,
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await rightClick.up();
+    await tester.pumpAndSettle();
+
+    expect(find.text(AppStrings.confirmParse), findsOneWidget);
+    expect(find.text('删除'), findsWidgets);
+    expect(find.text('编辑任务'), findsNothing);
+    expect(find.text(AppStrings.postponeToTomorrow), findsNothing);
+  });
+
   testWidgets(
     'today task can be postponed to tomorrow and moved back to inbox',
     (tester) async {
@@ -381,5 +411,40 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('24小时内到期'), findsOneWidget);
+  });
+
+  testWidgets('today metadata shows values without date/time/priority labels', (
+    tester,
+  ) async {
+    final storage = InMemoryTaskStorage([
+      const TaskItem(
+        id: 'today-1',
+        title: '今天任务',
+        bucket: TaskBucket.today,
+        timeType: TaskTimeType.deadlineOnly,
+        deadline: '2099-03-25',
+        priority: '高',
+        aiSummary: '截止：2099-03-25；优先级：高',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      AiTodoApp(
+        taskStorage: storage,
+        settingsStorage: InMemorySettingsStorage(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(AppStrings.today).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('截止：2099-03-25'), findsNothing);
+    expect(find.text('优先级：高'), findsNothing);
+    expect(find.text('日期'), findsNothing);
+    expect(find.text('时间'), findsNothing);
+    expect(find.text('优先级'), findsNothing);
+    expect(find.text('2099-03-25'), findsOneWidget);
+    expect(find.text('高'), findsOneWidget);
   });
 }

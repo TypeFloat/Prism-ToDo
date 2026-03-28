@@ -33,11 +33,43 @@ class _GatewayResponse {
   final List<Uri> attemptedEndpoints;
 }
 
+class _PromptTodoNode {
+  const _PromptTodoNode({
+    required this.title,
+    required this.date,
+    required this.time,
+    required this.priority,
+    required this.location,
+    required this.note,
+    required this.list,
+  });
+
+  final String title;
+  final String date;
+  final String time;
+  final String priority;
+  final String location;
+  final String note;
+  final List<_PromptTodoNode> list;
+}
+
 class OpenAICompatibleClient implements AIClient {
-  const OpenAICompatibleClient({http.Client? httpClient})
-    : _httpClient = httpClient;
+  const OpenAICompatibleClient({
+    http.Client? httpClient,
+    Future<String> Function()? promptLoader,
+  }) : _httpClient = httpClient,
+       _promptLoader = promptLoader;
 
   final http.Client? _httpClient;
+  final Future<String> Function()? _promptLoader;
+
+  static const String _healthCheckPrompt =
+      'You are a connectivity test assistant. Reply with a short "ok".';
+  static const List<String> _sharedPromptCandidates = [
+    'shared/prompts/todo.md',
+    '../shared/prompts/todo.md',
+    '../../shared/prompts/todo.md',
+  ];
 
   http.Client get _client => _httpClient ?? http.Client();
 
@@ -57,6 +89,7 @@ class OpenAICompatibleClient implements AIClient {
     try {
       final endpointResponse = await _postWithFallback(
         settings: settings,
+        systemPrompt: _healthCheckPrompt,
         rawText: '请回复一个简短的 ok，用于验证 API 连通性。',
       );
       final response = endpointResponse.response;
@@ -115,8 +148,10 @@ class OpenAICompatibleClient implements AIClient {
     if (validationError != null) throw AIRequestError(validationError);
 
     try {
+      final todoPrompt = await _loadSharedTodoPrompt();
       final endpointResponse = await _postWithFallback(
         settings: settings,
+        systemPrompt: todoPrompt,
         rawText: rawText,
       );
       final response = endpointResponse.response;
@@ -136,26 +171,36 @@ class OpenAICompatibleClient implements AIClient {
         throw const AIRequestError('AI 返回成功，但没有可解析内容。');
       }
 
-      final parsed = parseStructuredContent(content);
-      final normalized = (parsed['title'] as String?)?.trim();
-      final deadline = (parsed['deadline'] as String?)?.trim();
-      final priority = (parsed['priority'] as String?)?.trim();
-      final location = (parsed['location'] as String?)?.trim();
-      final notes = (parsed['notes'] as String?)?.trim();
+      final parsed = _parseStructuredContent(content);
+      if (parsed.isEmpty) {
+        throw const AIRequestError('AI 返回结构为空数组，无法生成任务。');
+      }
+
+      final primary = parsed.first;
+      final normalized = _nonEmpty(primary.title);
+      final deadline = _composeDeadline(primary.date, primary.time);
+      final priority = _nonEmpty(primary.priority);
+      final location = _nonEmpty(primary.location);
+      final notes = _nonEmpty(primary.note);
+
+      final parsedSubtasks = <_PromptTodoNode>[
+        ...primary.list,
+        ...parsed.skip(1),
+      ];
       return AIParseResult(
         normalizedTitle: normalized == null || normalized.isEmpty
             ? rawText.trim().replaceAll(RegExp(r'\s+'), ' ')
             : normalized,
         summary: buildReadableSummary(
-          deadline: deadline,
-          priority: priority,
           location: location,
           notes: notes,
+          subtaskCount: parsedSubtasks.length,
         ),
         deadline: _nonEmpty(deadline),
         priority: _nonEmpty(priority),
         location: _nonEmpty(location),
         notes: _nonEmpty(notes),
+        subtasks: parsedSubtasks.map(_toSubtask).toList(growable: false),
       );
     } on TimeoutException {
       throw const AIRequestError('请求超时：连接在设定时间内无响应（默认 30 秒）。');
@@ -334,6 +379,7 @@ class OpenAICompatibleClient implements AIClient {
   }
 
   Map<String, dynamic> buildChatCompletionsPayload({
+    required String systemPrompt,
     required String rawText,
     required AISettings settings,
   }) {
@@ -343,8 +389,7 @@ class OpenAICompatibleClient implements AIClient {
       'messages': [
         {
           'role': 'system',
-          'content':
-              'Extract a todo into JSON with keys: title, deadline, priority, location, notes. Return valid JSON only.',
+          'content': systemPrompt,
         },
         {'role': 'user', 'content': rawText},
       ],
@@ -352,6 +397,7 @@ class OpenAICompatibleClient implements AIClient {
   }
 
   Map<String, dynamic> buildResponsesPayload({
+    required String systemPrompt,
     required String rawText,
     required AISettings settings,
   }) {
@@ -361,8 +407,7 @@ class OpenAICompatibleClient implements AIClient {
       'input': [
         {
           'role': 'system',
-          'content':
-              'Extract a todo into JSON with keys: title, deadline, priority, location, notes. Return valid JSON only.',
+          'content': systemPrompt,
         },
         {'role': 'user', 'content': rawText},
       ],
@@ -392,35 +437,34 @@ class OpenAICompatibleClient implements AIClient {
     return '';
   }
 
-  Map<String, dynamic> parseStructuredContent(String content) {
+  List<_PromptTodoNode> _parseStructuredContent(String content) {
     final decoded = jsonDecode(content);
-    if (decoded is Map<String, dynamic>) return decoded;
-    throw const AIRequestError('AI 返回内容不是合法 JSON 对象。');
+    if (decoded is! List) {
+      throw const AIRequestError('AI 返回格式错误：最外层必须是 JSON 数组。');
+    }
+    return _validateTodoNodeList(decoded, path: r'$');
   }
 
   String buildReadableSummary({
-    String? deadline,
-    String? priority,
     String? location,
     String? notes,
+    int subtaskCount = 0,
   }) {
     final parts = <String>[];
-    final d = _nonEmpty(deadline);
-    final p = _nonEmpty(priority);
     final l = _nonEmpty(location);
     final n = _nonEmpty(notes);
 
-    if (d != null) parts.add('截止：$d');
-    if (p != null) parts.add('优先级：$p');
-    if (l != null) parts.add('地点：$l');
-    if (n != null) parts.add('备注：$n');
+    if (n != null) parts.add(n);
+    if (l != null) parts.add(l);
+    if (subtaskCount > 0) parts.add('子任务 $subtaskCount 项');
 
-    if (parts.isEmpty) return 'AI 已解析任务标题，可继续补充细节。';
+    if (parts.isEmpty) return 'AI 已解析任务标题。';
     return parts.join('；');
   }
 
   Future<_GatewayResponse> _postWithFallback({
     required AISettings settings,
+    required String systemPrompt,
     required String rawText,
   }) async {
     final timeout = Duration(
@@ -431,8 +475,16 @@ class OpenAICompatibleClient implements AIClient {
     for (var i = 0; i < attempts.length; i++) {
       final attempt = attempts[i];
       final payload = attempt.kind == _GatewayEndpointKind.chatCompletions
-          ? buildChatCompletionsPayload(rawText: rawText, settings: settings)
-          : buildResponsesPayload(rawText: rawText, settings: settings);
+          ? buildChatCompletionsPayload(
+              systemPrompt: systemPrompt,
+              rawText: rawText,
+              settings: settings,
+            )
+          : buildResponsesPayload(
+              systemPrompt: systemPrompt,
+              rawText: rawText,
+              settings: settings,
+            );
 
       final response = await _client
           .post(
@@ -562,6 +614,144 @@ class OpenAICompatibleClient implements AIClient {
     }
 
     return '';
+  }
+
+  Future<String> _loadSharedTodoPrompt() async {
+    if (_promptLoader != null) {
+      final loaded = await _promptLoader.call();
+      final prompt = loaded.trim();
+      if (prompt.isEmpty) {
+        throw const AIRequestError('共享提示词为空：shared/prompts/todo.md。');
+      }
+      return prompt;
+    }
+
+    for (final path in _sharedPromptCandidates) {
+      final file = File(path);
+      if (!await file.exists()) continue;
+      final content = await file.readAsString();
+      final prompt = content.trim();
+      if (prompt.isNotEmpty) return prompt;
+    }
+
+    throw const AIRequestError(
+      '未找到共享提示词 shared/prompts/todo.md，请先同步该文件。',
+    );
+  }
+
+  List<_PromptTodoNode> _validateTodoNodeList(
+    List<dynamic> values, {
+    required String path,
+  }) {
+    final items = <_PromptTodoNode>[];
+    for (var i = 0; i < values.length; i++) {
+      final itemPath = '$path[$i]';
+      final raw = values[i];
+      if (raw is! Map<String, dynamic>) {
+        throw AIRequestError('$itemPath 必须是对象。');
+      }
+      final title = _readString(raw, itemPath, 'title');
+      final date = _readString(raw, itemPath, 'date');
+      final time = _readString(raw, itemPath, 'time');
+      final priority = _readString(raw, itemPath, 'priority');
+      final location = _readString(raw, itemPath, 'location');
+      final note = _readString(raw, itemPath, 'note');
+      final listRaw = raw['list'];
+      if (listRaw is! List) {
+        throw AIRequestError('$itemPath.list 必须是数组。');
+      }
+
+      _validateDate(date, '$itemPath.date');
+      _validateTime(time, '$itemPath.time');
+      _validatePriority(priority, '$itemPath.priority');
+
+      items.add(
+        _PromptTodoNode(
+          title: title.trim(),
+          date: date.trim(),
+          time: time.trim(),
+          priority: priority.trim(),
+          location: location.trim(),
+          note: note.trim(),
+          list: _validateTodoNodeList(listRaw, path: '$itemPath.list'),
+        ),
+      );
+    }
+    return items;
+  }
+
+  String _readString(Map<String, dynamic> map, String path, String key) {
+    if (!map.containsKey(key)) {
+      throw AIRequestError('$path.$key 缺失。');
+    }
+    final value = map[key];
+    if (value is! String) {
+      throw AIRequestError('$path.$key 必须是字符串。');
+    }
+    return value;
+  }
+
+  void _validateDate(String value, String path) {
+    final text = value.trim();
+    if (text.isEmpty) return;
+    final match = RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(text);
+    if (!match) {
+      throw AIRequestError('$path 格式错误，必须是 yyyy-mm-dd。');
+    }
+
+    final parts = text.split('-').map(int.parse).toList(growable: false);
+    final year = parts[0];
+    final month = parts[1];
+    final day = parts[2];
+    final date = DateTime.tryParse('${text}T00:00:00');
+    if (date == null ||
+        date.year != year ||
+        date.month != month ||
+        date.day != day) {
+      throw AIRequestError('$path 日期无效。');
+    }
+  }
+
+  void _validateTime(String value, String path) {
+    final text = value.trim();
+    if (text.isEmpty) return;
+    final match = RegExp(r'^\d{2}:\d{2}$').firstMatch(text);
+    if (match == null) {
+      throw AIRequestError('$path 格式错误，必须是 hh:mm。');
+    }
+    final parts = text.split(':').map(int.parse).toList(growable: false);
+    final hour = parts[0];
+    final minute = parts[1];
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+      throw AIRequestError('$path 时间无效。');
+    }
+  }
+
+  void _validatePriority(String value, String path) {
+    const allowed = {'高', '中', '低'};
+    final text = value.trim();
+    if (!allowed.contains(text)) {
+      throw AIRequestError('$path 仅允许 高/中/低。');
+    }
+  }
+
+  String? _composeDeadline(String date, String time) {
+    final d = date.trim();
+    if (d.isEmpty) return null;
+    final t = time.trim();
+    if (t.isEmpty) return d;
+    return '${d}T$t:00';
+  }
+
+  AIParseSubtask _toSubtask(_PromptTodoNode node) {
+    return AIParseSubtask(
+      title: node.title,
+      deadline: _composeDeadline(node.date, node.time),
+      priority: _nonEmpty(node.priority),
+      location: _nonEmpty(node.location),
+      notes: _nonEmpty(node.note),
+      subtasks: node.list.map(_toSubtask).toList(growable: false),
+    );
   }
 
   String _replaceAfterV1(String normalizedPath, String suffix) {

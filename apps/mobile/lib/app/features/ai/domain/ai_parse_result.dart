@@ -6,6 +6,7 @@ class AIParseResult {
     this.priority,
     this.location,
     this.notes,
+    this.subtasks = const [],
   });
 
   final String normalizedTitle;
@@ -14,4 +15,23 @@ class AIParseResult {
   final String? priority;
   final String? location;
   final String? notes;
+  final List<AIParseSubtask> subtasks;
+}
+
+class AIParseSubtask {
+  const AIParseSubtask({
+    required this.title,
+    this.deadline,
+    this.priority,
+    this.location,
+    this.notes,
+    this.subtasks = const [],
+  });
+
+  final String title;
+  final String? deadline;
+  final String? priority;
+  final String? location;
+  final String? notes;
+  final List<AIParseSubtask> subtasks;
 }

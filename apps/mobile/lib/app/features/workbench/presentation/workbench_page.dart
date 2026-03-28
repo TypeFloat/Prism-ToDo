@@ -7,6 +7,7 @@ import '../../../models/task_item.dart';
 import '../../settings/data/settings_storage.dart';
 import '../../settings/domain/ai_settings.dart';
 import '../../ai/data/openai_compatible_client.dart';
+import '../../ai/domain/ai_parse_result.dart';
 import '../../ai/domain/ai_request_error.dart';
 import '../domain/task_service.dart';
 import 'utils/date_time_display.dart';
@@ -678,21 +679,28 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
       );
       if (!mounted) return;
       setState(() {
+        final hasDeadline = (result.deadline?.trim().isNotEmpty ?? false);
+        final updatedBucket = hasDeadline ? TaskBucket.today : target.bucket;
+        final parsedSubtasks = _buildSubtasksFromParsed(
+          parentId: taskId,
+          bucket: updatedBucket,
+          subtasks: result.subtasks,
+        );
         _tasks = _tasks.map((task) {
           if (task.id != taskId) return task;
-          final hasDeadline = (result.deadline?.trim().isNotEmpty ?? false);
           return task.copyWith(
             title: result.normalizedTitle,
             captureState: TaskCaptureState.parsed,
             aiSummary: result.summary,
-            deadline: result.deadline,
-            priority: result.priority,
-            location: result.location,
-            notes: result.notes,
-            bucket: hasDeadline ? TaskBucket.today : task.bucket,
+            deadline: result.deadline ?? '',
+            priority: result.priority ?? '',
+            location: result.location ?? '',
+            notes: result.notes ?? '',
+            bucket: updatedBucket,
             timeType: hasDeadline ? TaskTimeType.deadlineOnly : task.timeType,
           );
-        }).toList();
+        }).toList(growable: true)
+          ..addAll(parsedSubtasks);
       });
       _persistTasks();
     } on AIRequestError catch (error) {
@@ -728,6 +736,58 @@ class _WorkbenchPageState extends State<WorkbenchPage> {
     final parsed = DateTime.tryParse(raw);
     if (parsed == null) return value;
     return parsed.add(const Duration(days: 1)).toIso8601String();
+  }
+
+  List<TaskItem> _buildSubtasksFromParsed({
+    required String parentId,
+    required TaskBucket bucket,
+    required List<AIParseSubtask> subtasks,
+  }) {
+    if (subtasks.isEmpty) return const [];
+
+    final built = <TaskItem>[];
+    var sequence = DateTime.now().microsecondsSinceEpoch;
+
+    void appendChildren(String parent, List<AIParseSubtask> nodes) {
+      for (final node in nodes) {
+        final title = node.title.trim();
+        if (title.isEmpty) continue;
+        final itemId = 'ai-$parent-$sequence';
+        sequence += 1;
+        final hasDeadline = node.deadline?.trim().isNotEmpty ?? false;
+        built.add(
+          TaskItem(
+            id: itemId,
+            title: title,
+            bucket: bucket,
+            captureState: TaskCaptureState.parsed,
+            aiSummary: _subtaskSummary(node),
+            parentId: parent,
+            deadline: node.deadline,
+            timeType: hasDeadline
+                ? TaskTimeType.deadlineOnly
+                : TaskTimeType.none,
+            priority: node.priority,
+            location: node.location,
+            notes: node.notes,
+          ),
+        );
+        appendChildren(itemId, node.subtasks);
+      }
+    }
+
+    appendChildren(parentId, subtasks);
+    return built;
+  }
+
+  String? _subtaskSummary(AIParseSubtask node) {
+    final note = node.notes?.trim() ?? '';
+    final location = node.location?.trim() ?? '';
+    final parts = <String>[];
+    if (note.isNotEmpty) parts.add(note);
+    if (location.isNotEmpty) parts.add(location);
+    if (parts.isEmpty) return null;
+    return parts.join('；');
   }
 
   Future<void> _handleEditInfoField(String taskId, TaskInfoField field) async {

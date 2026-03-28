@@ -122,9 +122,7 @@ class _TaskCard extends StatelessWidget {
     final chipLabel = task.isParsed
         ? AppStrings.aiParsed
         : AppStrings.aiPending;
-    final summary = (task.aiSummary?.trim().isNotEmpty ?? false)
-        ? task.aiSummary!.trim()
-        : AppStrings.defaultSummary;
+    final summary = _summaryText(task);
     final priority = _nonEmpty(task.priority);
     final location = _nonEmpty(task.location);
     final notes = _nonEmpty(task.notes);
@@ -134,6 +132,7 @@ class _TaskCard extends StatelessWidget {
     final dateText = _dateText(task);
     final timeText = _timeText(task);
     final isTodayCard = task.bucket == TaskBucket.today && !task.isDone;
+    final isInboxCard = task.bucket == TaskBucket.inbox && !task.isDone;
 
     final card = Card(
       elevation: 0,
@@ -188,83 +187,77 @@ class _TaskCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            InkWell(
-              onTap: isTodayCard ? null : onEdit,
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: isTodayCard
-                    ? _TodayInfoPanel(
-                        summary: summary,
-                        dateText: dateText ?? '未设置日期',
-                        timeText: timeText ?? '--:--',
-                        priorityText: priority ?? '未设置优先级',
-                        deadlineState: deadlineState,
-                        onEditInfoField: onEditInfoField,
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(summary, style: theme.textTheme.bodyMedium),
-                          if (dateText != null ||
-                              timeText != null ||
-                              priority != null ||
-                              location != null ||
-                              notes != null ||
-                              reminder != null ||
-                              deadlineState != null) ...[
-                            const SizedBox(height: 10),
-                            if (dateText != null)
-                              Text(
-                                '日期：$dateText',
-                                style: theme.textTheme.bodySmall,
-                              ),
-                            if (timeText != null)
-                              Text(
-                                '时间：$timeText',
-                                style: theme.textTheme.bodySmall,
-                              ),
-                            if (deadlineState != null)
-                              Text(
-                                deadlineState,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: deadlineState.startsWith('已逾期')
-                                      ? theme.colorScheme.error
-                                      : theme.colorScheme.tertiary,
-                                  fontWeight: FontWeight.w600,
+            if (!isInboxCard) ...[
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: isTodayCard ? null : onEdit,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: isTodayCard
+                      ? _TodayInfoPanel(
+                          summary: summary,
+                          dateText: dateText ?? '未设置日期',
+                          timeText: timeText ?? '--:--',
+                          priorityText: priority ?? '未设置优先级',
+                          deadlineState: deadlineState,
+                          onEditInfoField: onEditInfoField,
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (summary != null)
+                              Text(summary, style: theme.textTheme.bodyMedium),
+                            if (dateText != null ||
+                                timeText != null ||
+                                priority != null ||
+                                location != null ||
+                                notes != null ||
+                                reminder != null ||
+                                deadlineState != null) ...[
+                              if (summary != null) const SizedBox(height: 10),
+                              if (dateText != null)
+                                Text(dateText, style: theme.textTheme.bodySmall),
+                              if (timeText != null)
+                                Text(timeText, style: theme.textTheme.bodySmall),
+                              if (deadlineState != null)
+                                Text(
+                                  deadlineState,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: deadlineState.startsWith('已逾期')
+                                        ? theme.colorScheme.error
+                                        : theme.colorScheme.tertiary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ),
-                            if (reminder != null)
-                              Text(
-                                '提醒：$reminder',
-                                style: theme.textTheme.bodySmall,
-                              ),
-                            if (priority != null)
-                              Text(
-                                '优先级：$priority',
-                                style: theme.textTheme.bodySmall,
-                              ),
-                            if (location != null)
-                              Text(
-                                '地点：$location',
-                                style: theme.textTheme.bodySmall,
-                              ),
-                            if (notes != null)
-                              Text(
-                                '备注：$notes',
-                                style: theme.textTheme.bodySmall,
-                              ),
+                              if (reminder != null)
+                                Text(
+                                  '提醒：$reminder',
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                              if (priority != null)
+                                Text(priority, style: theme.textTheme.bodySmall),
+                              if (location != null)
+                                Text(
+                                  '地点：$location',
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                              if (notes != null)
+                                Text(
+                                  '备注：$notes',
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                            ],
                           ],
-                        ],
-                      ),
+                        ),
+                ),
               ),
-            ),
+            ],
             if (subtasks.isNotEmpty) ...[
               const SizedBox(height: 10),
               ...subtasks.map(
@@ -290,7 +283,7 @@ class _TaskCard extends StatelessWidget {
                 ),
               ),
             ],
-            if (!isTodayCard) ...[
+            if (!isTodayCard && !isInboxCard) ...[
               const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
@@ -324,11 +317,11 @@ class _TaskCard extends StatelessWidget {
       ),
     );
 
-    if (!isTodayCard) return card;
+    if (!isTodayCard && !isInboxCard) return card;
 
     return GestureDetector(
       onSecondaryTapDown: (details) => _showContextMenu(context, details),
-      onLongPress: onEdit,
+      onLongPress: isTodayCard ? onEdit : null,
       behavior: HitTestBehavior.opaque,
       child: card,
     );
@@ -340,6 +333,8 @@ class _TaskCard extends StatelessWidget {
   ) async {
     final overlay = Overlay.of(context).context.findRenderObject();
     if (overlay is! RenderBox) return;
+    final isTodayCard = task.bucket == TaskBucket.today && !task.isDone;
+    final isInboxCard = task.bucket == TaskBucket.inbox && !task.isDone;
 
     final x = details.globalPosition.dx;
     final y = details.globalPosition.dy;
@@ -351,22 +346,43 @@ class _TaskCard extends StatelessWidget {
         overlay.size.width - x,
         overlay.size.height - y,
       ),
-      items: [
-        const PopupMenuItem(value: _TaskMenuAction.edit, child: Text('编辑任务')),
-        PopupMenuItem(
-          value: _TaskMenuAction.confirmParse,
-          enabled: !task.isParsed,
-          child: Text(
-            task.isParsed ? AppStrings.confirmed : AppStrings.confirmParse,
-          ),
-        ),
-        if (onPostponeToTomorrow != null)
-          const PopupMenuItem(
-            value: _TaskMenuAction.postpone,
-            child: Text(AppStrings.postponeToTomorrow),
-          ),
-        const PopupMenuItem(value: _TaskMenuAction.delete, child: Text('删除')),
-      ],
+      items: isInboxCard
+          ? [
+              PopupMenuItem(
+                value: _TaskMenuAction.confirmParse,
+                enabled: !task.isParsed,
+                child: Text(
+                  task.isParsed ? AppStrings.confirmed : AppStrings.confirmParse,
+                ),
+              ),
+              const PopupMenuItem(
+                value: _TaskMenuAction.delete,
+                child: Text('删除'),
+              ),
+            ]
+          : [
+              if (isTodayCard)
+                const PopupMenuItem(
+                  value: _TaskMenuAction.edit,
+                  child: Text('编辑任务'),
+                ),
+              PopupMenuItem(
+                value: _TaskMenuAction.confirmParse,
+                enabled: !task.isParsed,
+                child: Text(
+                  task.isParsed ? AppStrings.confirmed : AppStrings.confirmParse,
+                ),
+              ),
+              if (onPostponeToTomorrow != null)
+                const PopupMenuItem(
+                  value: _TaskMenuAction.postpone,
+                  child: Text(AppStrings.postponeToTomorrow),
+                ),
+              const PopupMenuItem(
+                value: _TaskMenuAction.delete,
+                child: Text('删除'),
+              ),
+            ],
     );
 
     switch (action) {
@@ -388,13 +404,18 @@ class _TaskCard extends StatelessWidget {
   }
 
   String? _dateText(TaskItem item) {
-    final parsed = DateTimeDisplay.tryParse(_timeSourceRaw(item));
+    final source = _timeSourceRaw(item);
+    if (source == null) return null;
+    if (_isDateOnly(source)) return source;
+    final parsed = DateTimeDisplay.tryParse(source);
     if (parsed != null) return DateTimeDisplay.formatDate(parsed);
-    return _nonEmpty(_timeSourceRaw(item));
+    return null;
   }
 
   String? _timeText(TaskItem item) {
-    final parsed = DateTimeDisplay.tryParse(_timeSourceRaw(item));
+    final source = _timeSourceRaw(item);
+    if (source == null || _isDateOnly(source)) return null;
+    final parsed = DateTimeDisplay.tryParse(source);
     if (parsed != null) return DateTimeDisplay.formatHm(parsed);
     return null;
   }
@@ -412,6 +433,28 @@ class _TaskCard extends StatelessWidget {
   String? _nonEmpty(String? value) {
     final trimmed = value?.trim() ?? '';
     return trimmed.isEmpty ? null : trimmed;
+  }
+
+  bool _isDateOnly(String value) =>
+      RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value.trim());
+
+  String? _summaryText(TaskItem item) {
+    final raw = _nonEmpty(item.aiSummary) ?? _nonEmpty(item.notes);
+    if (raw == null) return null;
+    final filtered = raw
+        .split('；')
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .where(
+          (part) =>
+              !part.contains('截止：') &&
+              !part.contains('优先级：') &&
+              !part.contains('日期：') &&
+              !part.contains('时间：'),
+        )
+        .toList(growable: false);
+    if (filtered.isEmpty) return null;
+    return filtered.join('；');
   }
 
   String? _reminderLabel(String? reminder) {
@@ -454,7 +497,7 @@ class _TodayInfoPanel extends StatelessWidget {
     required this.onEditInfoField,
   });
 
-  final String summary;
+  final String? summary;
   final String dateText;
   final String timeText;
   final String priorityText;
@@ -467,13 +510,14 @@ class _TodayInfoPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(summary, style: theme.textTheme.bodyMedium),
-        const SizedBox(height: 10),
+        if (summary != null) ...[
+          Text(summary!, style: theme.textTheme.bodyMedium),
+          const SizedBox(height: 10),
+        ],
         Row(
           children: [
             Expanded(
               child: _InfoCell(
-                label: '日期',
                 value: dateText,
                 onTap: () => onEditInfoField(TaskInfoField.date),
               ),
@@ -481,7 +525,6 @@ class _TodayInfoPanel extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: _InfoCell(
-                label: '时间',
                 value: timeText,
                 onTap: () => onEditInfoField(TaskInfoField.time),
               ),
@@ -489,7 +532,6 @@ class _TodayInfoPanel extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: _InfoCell(
-                label: '优先级',
                 value: priorityText,
                 onTap: () => onEditInfoField(TaskInfoField.priority),
               ),
@@ -514,13 +556,8 @@ class _TodayInfoPanel extends StatelessWidget {
 }
 
 class _InfoCell extends StatelessWidget {
-  const _InfoCell({
-    required this.label,
-    required this.value,
-    required this.onTap,
-  });
+  const _InfoCell({required this.value, required this.onTap});
 
-  final String label;
   final String value;
   final VoidCallback onTap;
 
@@ -539,18 +576,11 @@ class _InfoCell extends StatelessWidget {
             color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: theme.textTheme.labelSmall),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+        child: Text(
+          value,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );

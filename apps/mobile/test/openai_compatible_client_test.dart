@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:ai_todo_mobile/app/features/ai/data/openai_compatible_client.dart';
+import 'package:ai_todo_mobile/app/features/ai/domain/ai_request_error.dart';
 import 'package:ai_todo_mobile/app/features/settings/domain/ai_settings.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -160,23 +161,41 @@ void main() {
   );
 
   test('parseTask extracts structured fields from JSON content', () async {
+    const sharedPrompt = 'from-shared-prompt';
     final mock = MockClient((request) async {
       if (request.method == 'GET') {
         return http.Response('ok', 200);
       }
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final messages = body['messages'] as List<dynamic>;
+      expect((messages.first as Map<String, dynamic>)['content'], sharedPrompt);
       return http.Response.bytes(
         utf8.encode(
           jsonEncode({
             'choices': [
               {
                 'message': {
-                  'content': jsonEncode({
-                    'title': '发送项目周报给 Alice',
-                    'deadline': '明天下午3点前',
-                    'priority': '高',
-                    'location': '公司',
-                    'notes': '需要附上燃尽图',
-                  }),
+                  'content': jsonEncode([
+                    {
+                      'title': '发送项目周报给 Alice',
+                      'date': '2026-03-29',
+                      'time': '15:00',
+                      'priority': '高',
+                      'location': '公司',
+                      'note': '需要附上燃尽图',
+                      'list': [
+                        {
+                          'title': '附上燃尽图',
+                          'date': '2026-03-29',
+                          'time': '',
+                          'priority': '中',
+                          'location': '',
+                          'note': '从看板导出最新版本',
+                          'list': [],
+                        },
+                      ],
+                    },
+                  ]),
                 },
               },
             ],
@@ -187,7 +206,10 @@ void main() {
       );
     });
 
-    final client = OpenAICompatibleClient(httpClient: mock);
+    final client = OpenAICompatibleClient(
+      httpClient: mock,
+      promptLoader: () async => sharedPrompt,
+    );
     const settings = AISettings(
       enabled: true,
       advancedMode: true,
@@ -202,10 +224,12 @@ void main() {
     );
 
     expect(result.normalizedTitle, '发送项目周报给 Alice');
-    expect(result.deadline, '明天下午3点前');
+    expect(result.deadline, '2026-03-29T15:00:00');
     expect(result.priority, '高');
     expect(result.location, '公司');
     expect(result.notes, '需要附上燃尽图');
+    expect(result.subtasks.length, 1);
+    expect(result.subtasks.first.title, '附上燃尽图');
   });
 
   test(
@@ -220,16 +244,23 @@ void main() {
         }
         if (request.method == 'POST' &&
             request.url.path.endsWith('/responses')) {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final input = body['input'] as List<dynamic>;
+          expect((input.first as Map<String, dynamic>)['content'], 'shared');
           return http.Response.bytes(
             utf8.encode(
               jsonEncode({
-                'output_text': jsonEncode({
-                  'title': '准备周会材料',
-                  'deadline': '2026-03-30T09:30:00+08:00',
-                  'priority': '中',
-                  'location': '会议室',
-                  'notes': '带上上周行动项',
-                }),
+                'output_text': jsonEncode([
+                  {
+                    'title': '准备周会材料',
+                    'date': '2026-03-30',
+                    'time': '09:30',
+                    'priority': '中',
+                    'location': '会议室',
+                    'note': '带上上周行动项',
+                    'list': [],
+                  },
+                ]),
               }),
             ),
             200,
@@ -239,7 +270,10 @@ void main() {
         return http.Response('not found', 404);
       });
 
-      final client = OpenAICompatibleClient(httpClient: mock);
+      final client = OpenAICompatibleClient(
+        httpClient: mock,
+        promptLoader: () async => 'shared',
+      );
       const settings = AISettings(
         enabled: true,
         advancedMode: true,
@@ -254,10 +288,66 @@ void main() {
       );
 
       expect(result.normalizedTitle, '准备周会材料');
-      expect(result.deadline, '2026-03-30T09:30:00+08:00');
+      expect(result.deadline, '2026-03-30T09:30:00');
       expect(result.priority, '中');
       expect(requestedPaths, contains('/v1/chat/completions'));
       expect(requestedPaths, contains('/v1/responses'));
     },
   );
+
+  test('parseTask rejects invalid date/time/priority format', () async {
+    final mock = MockClient((request) async {
+      if (request.method == 'GET') {
+        return http.Response('ok', 200);
+      }
+      return http.Response.bytes(
+        utf8.encode(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {
+                  'content': jsonEncode([
+                    {
+                      'title': '坏格式任务',
+                      'date': '今天15:00',
+                      'time': '99:00',
+                      'priority': '紧急',
+                      'location': '',
+                      'note': '',
+                      'list': [],
+                    },
+                  ]),
+                },
+              },
+            ],
+          }),
+        ),
+        200,
+        headers: {'content-type': 'application/json; charset=utf-8'},
+      );
+    });
+
+    final client = OpenAICompatibleClient(
+      httpClient: mock,
+      promptLoader: () async => 'shared',
+    );
+    const settings = AISettings(
+      enabled: true,
+      advancedMode: true,
+      baseUrl: 'https://example.com',
+      apiKey: 'token',
+      model: 'gpt-4o-mini',
+    );
+
+    await expectLater(
+      client.parseTask(rawText: '测试', settings: settings),
+      throwsA(
+        isA<AIRequestError>().having(
+          (e) => e.message,
+          'message',
+          contains('格式错误'),
+        ),
+      ),
+    );
+  });
 }
